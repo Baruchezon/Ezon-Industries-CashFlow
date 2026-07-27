@@ -179,6 +179,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--steel-300);borde
 table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;min-width:820px;}
 th{background:var(--graphite-800);color:#fff;text-align:right;padding:11px 12px;font-weight:600;font-size:12.5px;white-space:nowrap;}
 td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tbody tr:nth-child(even){background:#f7f9fb;}
+tbody tr:hover{background:#eef4fa;}
+td.col-income{color:var(--green);font-weight:700;}
+td.col-expense{color:var(--red);font-weight:700;}
+th.col-income{background:#1f7a4d;}
+th.col-expense{background:#b7322a;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:#f7f9fa;}
 .status-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
@@ -275,13 +281,18 @@ tr:hover td{background:#f7f9fa;}
   #sidenav, #topbarSlot, .toolbar, .no-print, #modal-root, #toast-root { display:none !important; }
   #main{ padding:0 !important; }
   body{ background:#fff !important; }
-  .card{ box-shadow:none !important; border:1px solid #ddd !important; }
+  .card{ box-shadow:none !important; border:1px solid #ddd !important; padding:0 !important; }
   #printReportHeader{ display:block !important; margin-bottom:16px; border-bottom:3px solid #134a72; padding-bottom:10px; }
   #printReportHeader .prh-company{ font-size:18px; font-weight:800; color:#0e3a5f; }
   #printReportHeader .prh-title{ font-size:15px; margin-top:4px; }
   #printReportHeader .prh-meta{ font-size:11px; color:#666; margin-top:4px; }
   .report-summary-box{ background:#eef2f7 !important; color:#0e3a5f !important; border:1px solid #ccc; }
-  table{ font-size:11px !important; }
+  .table-wrap{ overflow:visible !important; border:none !important; }
+  table{ font-size:11.5px !important; width:100% !important; min-width:0 !important; table-layout:auto !important; border-collapse:collapse !important; }
+  th, td{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; padding:6px 8px !important; border:1px solid #ccc !important; }
+  th{ background:#0e3a5f !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  tr{ page-break-inside:avoid; }
+  tbody tr:nth-child(even){ background:#f7f9fb !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 }
 </style>
 </head>
@@ -1513,7 +1524,7 @@ function renderIncomeTableView(el){
         rows.forEach(p=>{
           byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
           byDate[p.date].income += p.amount;
-          byDate[p.date].incomeDetail.push({label:`${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount});
+          byDate[p.date].incomeDetail.push({label:`${p.isCredit?'🟣 זיכוי - ':''}${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount});
         });
         expScope.forEach(p=>{
           byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
@@ -2009,7 +2020,7 @@ function renderExpenseTableView(el){
         incScope.forEach(p=>{
           byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
           byDate[p.date].income += p.amount;
-          byDate[p.date].incomeDetail.push({label:`${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount});
+          byDate[p.date].incomeDetail.push({label:`${p.isCredit?'🟣 זיכוי - ':''}${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount});
         });
         const entries = Object.keys(byDate).sort().map(d=>({label: fmtDateShort(d), income: byDate[d].income, expense: byDate[d].expense, incomeDetail: byDate[d].incomeDetail, expenseDetail: byDate[d].expenseDetail, expenseStack: groupExpensesByType(rows.filter(p=>p.date===d))}));
         return renderBarChart(entries, [{key:'income', color:'var(--green)', name:'הכנסות'},{key:'expense', color:'var(--red)', name:'הוצאות'}]);
@@ -2184,7 +2195,7 @@ function renderMonthlyCashflowView(el){
       ${renderBarChart(
         days.filter(d=> d.incSum || d.expSum).map(d=>({
           label: fmtDateShort(d.iso), income: d.incSum, expense: d.expSum,
-          incomeDetail: d.incomeItems.map(p=>({label:`${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount})),
+          incomeDetail: d.incomeItems.map(p=>({label:`${p.isCredit?'🟣 זיכוי - ':''}${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount})),
           expenseDetail: d.expenseItems.map(p=>({label:`${p.supplier} (${p.type})`, amount:p.amount})),
           expenseStack: groupExpensesByType(d.expenseItems)
         })),
@@ -2346,16 +2357,29 @@ const REPORT_TYPES = [
 
 function renderReportsView(el){
   const sel = viewState.reportId || 'income-by-month';
+  const monthlyReportTypes = ['income-by-month','expense-by-month','annual-cashflow','mid-month-cutoff','expected-vs-actual'];
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px;">
       <div class="toolbar">
-        <select id="reportSelect" style="max-width:340px;" onchange="viewState.reportId=this.value; renderCurrentView();">
+        <select id="reportSelect" style="max-width:340px;" onchange="viewState.reportId=this.value; viewState.reportMonth=''; renderCurrentView();">
           ${REPORT_TYPES.map(r=>`<option value="${r.id}" ${sel===r.id?'selected':''}>${r.label}</option>`).join('')}
         </select>
         <div class="filters">
           <select id="reportYear" onchange="viewState.reportYear=this.value; renderCurrentView();">
             ${[0,1,2].map(i=>{const y=new Date().getFullYear()-i; return `<option value="${y}" ${(viewState.reportYear||new Date().getFullYear())==y?'selected':''}>${y}</option>`;}).join('')}
           </select>
+          ${monthlyReportTypes.includes(sel) ? `
+          <select id="reportMonthFilter" onchange="viewState.reportMonth=this.value; renderCurrentView();">
+            <option value="">כל השנה</option>
+            ${HE_MONTHS.map((m,i)=>`<option value="${i+1}" ${String(viewState.reportMonth)===String(i+1)?'selected':''}>${m} בלבד</option>`).join('')}
+          </select>` : ''}
+          ${SCOPABLE_REPORTS.includes(sel) ? `
+          <div class="pill-toggle">
+            <div class="pill ${(viewState.reportScope||'all')==='all'?'active':''}" onclick="viewState.reportScope='all'; renderCurrentView();">משולב</div>
+            <div class="pill ${viewState.reportScope==='income'?'active':''}" onclick="viewState.reportScope='income'; renderCurrentView();" style="color:${viewState.reportScope==='income'?'#fff':'var(--green)'};background:${viewState.reportScope==='income'?'var(--green)':''};">🟢 הכנסות בלבד</div>
+            <div class="pill ${viewState.reportScope==='expense'?'active':''}" onclick="viewState.reportScope='expense'; renderCurrentView();" style="color:${viewState.reportScope==='expense'?'#fff':'var(--red)'};background:${viewState.reportScope==='expense'?'var(--red)':''};">🔴 הוצאות בלבד</div>
+          </div>` : ''}
+          <input type="text" id="reportSearch" placeholder="🔍 סינון חופשי בטבלה..." style="min-width:160px;" value="${viewState.reportSearch||''}" oninput="viewState.reportSearch=this.value; renderReportBody(viewState.reportId||'income-by-month', viewState.reportYear||new Date().getFullYear());">
           <button class="btn btn-blue btn-sm" onclick="downloadReportPDF()">📄 הורדה כ-PDF</button>
           <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 הדפסה</button>
           <button class="btn btn-green btn-sm" onclick="exportReportCSV()">⬇️ ייצוא לאקסל (CSV)</button>
@@ -2366,23 +2390,52 @@ function renderReportsView(el){
   `;
   renderReportBody(sel, viewState.reportYear||new Date().getFullYear());
 }
+function filterReportMonth(mk){
+  // clicking a month row in any monthly report scopes the whole report to just that month
+  viewState.reportMonth = String(Number(mk.split('-')[1]));
+  renderCurrentView();
+}
+
 
 let lastReportRows = {headers:[], rows:[], summary:[], title:''};
+
+const SCOPABLE_REPORTS = ['monthly-cashflow-report','annual-cashflow','forecast-4m','expected-vs-actual'];
+const REPORT_COLUMN_ROLES = {
+  'income-by-month': ['month','income','income','income','count','count'],
+  'expense-by-month': ['month','expense','expense','expense','count','count'],
+  'monthly-cashflow-report': ['date','income','expense','net','net'],
+  'annual-cashflow': ['month','income','expense','net','net'],
+  'unpaid-customers': ['text','text','income','income','income'],
+  'checks-outstanding': ['text','text','date','expense','text'],
+  'credit-cards': ['text','text','date','expense','text'],
+  'fixed-expenses': ['text','text','expense','text','text'],
+  'mid-month-cutoff': ['month','net','net'],
+  'forecast-4m': ['month','income','expense','net','net'],
+  'expected-vs-actual': ['month','income','income','expense','expense','net']
+};
+function reportMonthRange(){
+  const rm = viewState.reportMonth;
+  if(rm){ return [Number(rm)-1]; }
+  return Array.from({length:12},(_,i)=>i);
+}
 
 function renderReportBody(id, year){
   const body = document.getElementById('reportBody');
   const title = REPORT_TYPES.find(r=>r.id===id)?.label||'';
-  let headers=[], rows=[], summary=[];
+  const monthlyReportTypes = ['income-by-month','expense-by-month','annual-cashflow','mid-month-cutoff','expected-vs-actual'];
+  const isMonthlyReport = monthlyReportTypes.includes(id);
+  let headers=[], rows=[], summary=[], rowMonthKeys=[];
 
   if(id==='income-by-month'){
     headers = ['חודש','סה"כ צפוי','שולם בפועל','יתרה','מס׳ חשבוניות','באיחור'];
     let totExpected=0, totActual=0, totCount=0, totLate=0;
-    for(let m=0;m<12;m++){
+    reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
       rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(sa.incomeTotal), fmtILS(round2(s.incomeTotal-sa.incomeTotal)), s.countIncome, s.lateIncome]);
+      rowMonthKeys.push(mk);
       totExpected+=s.incomeTotal; totActual+=sa.incomeTotal; totCount+=s.countIncome; totLate+=s.lateIncome;
-    }
+    });
     summary = [
       {label:'סה"כ הכנסות צפויות לשנה', value: fmtILS(totExpected)},
       {label:'סה"כ שולם בפועל', value: fmtILS(totActual)},
@@ -2393,12 +2446,13 @@ function renderReportBody(id, year){
   } else if(id==='expense-by-month'){
     headers = ['חודש','סה"כ צפוי','שולם בפועל','יתרה','מס׳ הוצאות','באיחור'];
     let totExpected=0, totActual=0, totCount=0, totLate=0;
-    for(let m=0;m<12;m++){
+    reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
       rows.push([monthLabel(mk), fmtILS(s.expenseTotal), fmtILS(sa.expenseTotal), fmtILS(round2(s.expenseTotal-sa.expenseTotal)), s.countExpense, s.lateExpense]);
+      rowMonthKeys.push(mk);
       totExpected+=s.expenseTotal; totActual+=sa.expenseTotal; totCount+=s.countExpense; totLate+=s.lateExpense;
-    }
+    });
     summary = [
       {label:'סה"כ הוצאות צפויות לשנה', value: fmtILS(totExpected)},
       {label:'סה"כ שולם בפועל', value: fmtILS(totActual)},
@@ -2414,23 +2468,24 @@ function renderReportBody(id, year){
     const totInc = days.reduce((s,d)=>s+d.incSum,0), totExp = days.reduce((s,d)=>s+d.expSum,0);
     summary = [
       {label:'חודש', value: monthLabel(mk)},
-      {label:'סה"כ הכנסות', value: fmtILS(totInc)},
-      {label:'סה"כ הוצאות', value: fmtILS(totExp)},
+      {label:'סה"כ הכנסות', value: fmtILS(totInc), role:'income'},
+      {label:'סה"כ הוצאות', value: fmtILS(totExp), role:'expense'},
       {label:'תזרים נטו לחודש', value: fmtILS(round2(totInc-totExp))},
       {label:'יתרת סגירה', value: days.length? fmtILS(days[days.length-1].closeBal) : fmtILS(0)}
     ];
   } else if(id==='annual-cashflow'){
     headers=['חודש','הכנסות','הוצאות','יתרה חודשית','יתרה מצטברת'];
     let totInc=0, totExp=0;
-    for(let m=0;m<12;m++){
+    reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected');
       rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(s.expenseTotal), fmtILS(s.balance), fmtILS(cumulativeBalanceThroughMonth(mk,'expected'))]);
+      rowMonthKeys.push(mk);
       totInc+=s.incomeTotal; totExp+=s.expenseTotal;
-    }
+    });
     summary = [
-      {label:'סה"כ הכנסות לשנה', value: fmtILS(totInc)},
-      {label:'סה"כ הוצאות לשנה', value: fmtILS(totExp)},
+      {label:'סה"כ הכנסות לשנה', value: fmtILS(totInc), role:'income'},
+      {label:'סה"כ הוצאות לשנה', value: fmtILS(totExp), role:'expense'},
       {label:'רווח/הפסד שנתי', value: fmtILS(round2(totInc-totExp))},
       {label:'יתרה מצטברת בסוף השנה', value: fmtILS(cumulativeBalanceThroughMonth(year+'-12','expected'))}
     ];
@@ -2466,11 +2521,12 @@ function renderReportBody(id, year){
     summary = [{label:'מס׳ הוצאות קבועות', value: rows.length}, {label:'סה"כ לחיוב חודשי', value: fmtILS(tot)}];
   } else if(id==='mid-month-cutoff'){
     headers=['חודש','יתרה עד ה-15','יתרה לסוף חודש'];
-    for(let m=0;m<12;m++){
+    reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected');
       rows.push([monthLabel(mk), fmtILS(s.balance15), fmtILS(s.balance)]);
-    }
+      rowMonthKeys.push(mk);
+    });
     summary = [{label:'שנה', value: year}];
   } else if(id==='forecast-4m'){
     headers=['חודש','הכנסות','הוצאות','יתרה חודשית','יתרה מצטברת'];
@@ -2481,18 +2537,53 @@ function renderReportBody(id, year){
       rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(s.expenseTotal), fmtILS(s.balance), fmtILS(cumulativeBalanceThroughMonth(mk,'expected'))]);
       totInc+=s.incomeTotal; totExp+=s.expenseTotal;
     }
-    summary = [{label:'סה"כ הכנסות (4 חודשים)', value: fmtILS(totInc)}, {label:'סה"כ הוצאות (4 חודשים)', value: fmtILS(totExp)}, {label:'רווח/הפסד תחזית', value: fmtILS(round2(totInc-totExp))}];
+    summary = [{label:'סה"כ הכנסות (4 חודשים)', value: fmtILS(totInc), role:'income'}, {label:'סה"כ הוצאות (4 חודשים)', value: fmtILS(totExp), role:'expense'}, {label:'רווח/הפסד תחזית', value: fmtILS(round2(totInc-totExp))}];
   } else if(id==='expected-vs-actual'){
     headers=['חודש','הכנסות צפוי','הכנסות בפועל','הוצאות צפוי','הוצאות בפועל','פער'];
-    let totGap=0;
-    for(let m=0;m<12;m++){
+    let totGap=0, totIncExp=0, totIncAct=0, totExpExp=0, totExpAct=0;
+    reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const se = monthStats(mk,'expected'), sa = monthStats(mk,'actual');
       const gap = round2((se.incomeTotal-se.expenseTotal)-(sa.incomeTotal-sa.expenseTotal));
       rows.push([monthLabel(mk), fmtILS(se.incomeTotal), fmtILS(sa.incomeTotal), fmtILS(se.expenseTotal), fmtILS(sa.expenseTotal), fmtILS(gap)]);
-      totGap+=gap;
-    }
-    summary = [{label:'סה"כ פער שנתי (צפוי מול בפועל)', value: fmtILS(totGap)}];
+      rowMonthKeys.push(mk);
+      totGap+=gap; totIncExp+=se.incomeTotal; totIncAct+=sa.incomeTotal; totExpExp+=se.expenseTotal; totExpAct+=sa.expenseTotal;
+    });
+    summary = [
+      {label:'הכנסות צפוי', value: fmtILS(totIncExp), role:'income'},
+      {label:'הכנסות בפועל', value: fmtILS(totIncAct), role:'income'},
+      {label:'הוצאות צפוי', value: fmtILS(totExpExp), role:'expense'},
+      {label:'הוצאות בפועל', value: fmtILS(totExpAct), role:'expense'},
+      {label:'סה"כ פער שנתי (צפוי מול בפועל)', value: fmtILS(totGap)}
+    ];
+  }
+
+  // scope filter: for reports combining income+expense, let the user narrow to
+  // just one side - drop the other side's columns (and any pure "net" columns,
+  // since those depend on both and don't make sense in a single-sided view)
+  let roles = REPORT_COLUMN_ROLES[id];
+  const scope = SCOPABLE_REPORTS.includes(id) ? (viewState.reportScope||'all') : 'all';
+  if(roles && scope!=='all'){
+    const keepIdx = roles.map((r,i)=> (r==='month'||r==='date'||r===scope) ? i : -1).filter(i=>i>=0);
+    headers = keepIdx.map(i=>headers[i]);
+    rows = rows.map(r=> keepIdx.map(i=>r[i]));
+    roles = keepIdx.map(i=>roles[i]);
+    summary = summary.filter(s=> !s.role || s.role===scope);
+  }
+
+  // general free-text filter across all report types - flexible filtering without
+  // needing per-report-specific filter UI; matches against any visible cell text
+  const searchQ = (viewState.reportSearch||'').trim().toLowerCase();
+  if(searchQ){
+    const keptRows = [], keptMonthKeys = [];
+    rows.forEach((r,i)=>{
+      if(r.some(c=> String(c).toLowerCase().includes(searchQ))){
+        keptRows.push(r);
+        if(rowMonthKeys.length) keptMonthKeys.push(rowMonthKeys[i]);
+      }
+    });
+    rows = keptRows;
+    if(rowMonthKeys.length) rowMonthKeys = keptMonthKeys;
   }
 
   lastReportRows = {headers, rows, summary, title, year};
@@ -2504,9 +2595,15 @@ function renderReportBody(id, year){
       <div class="prh-meta">הופק בתאריך ${now.toLocaleDateString('he-IL')} בשעה ${now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</div>
     </div>
     <h3 class="no-print" style="margin:0 0 14px;font-size:15px;">${title} ${year?('- '+year):''}</h3>
-    ${summary.length? `<div class="report-summary-box"><div class="rs-grid">${summary.map(s=>`<div class="rs-item"><div class="rs-label">${s.label}</div><div class="rs-value">${s.value}</div></div>`).join('')}</div></div>` : ''}
-    <div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${rows.length? rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}"><div class="empty-state"><div class="ic">📭</div>אין נתונים להצגה בדוח זה</div></td></tr>`}</tbody>
+    ${summary.length? `<div class="report-summary-box"><div class="rs-grid">${summary.map(s=>`<div class="rs-item"><div class="rs-label">${s.label}</div><div class="rs-value" style="${s.role==='income'?'color:#6fe3a3;':s.role==='expense'?'color:#ff9d9d;':''}">${s.value}</div></div>`).join('')}</div></div>` : ''}
+    ${viewState.reportMonth ? `<div class="no-print" style="margin-bottom:10px;"><button class="btn btn-ghost btn-sm" onclick="viewState.reportMonth=''; renderCurrentView();">↩ חזרה לכל השנה</button></div>` : ''}
+    <div class="table-wrap"><table><thead><tr>${headers.map((h,i)=>{const role=roles&&roles[i]; const cls=(role==='income'||role==='expense')?` col-${role}`:''; return `<th class="${cls}">${h}</th>`;}).join('')}</tr></thead>
+    <tbody>${rows.length? rows.map((r,i)=>`<tr>${r.map((c,ci)=>{
+        const role = roles && roles[ci];
+        const cls = (role==='income'||role==='expense') ? ` col-${role}` : '';
+        if(ci===0 && rowMonthKeys[i]) return `<td class="${cls}"><a href="javascript:void(0)" class="no-print" onclick="filterReportMonth('${rowMonthKeys[i]}')" style="color:var(--blue);text-decoration:underline;cursor:pointer;">${c}</a><span class="print-only" style="display:none;">${c}</span></td>`;
+        return `<td class="${cls}">${c}</td>`;
+      }).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}"><div class="empty-state"><div class="ic">📭</div>אין נתונים להצגה בדוח זה</div></td></tr>`}</tbody>
     </table></div>`;
 }
 
