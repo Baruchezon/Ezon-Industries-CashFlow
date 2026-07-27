@@ -266,6 +266,23 @@ tr:hover td{background:#f7f9fa;}
   .iconbtn.mobileonly{display:flex;}
   table{min-width:680px;}
 }
+#printReportHeader{ display:none; }
+.report-summary-box{ background:linear-gradient(135deg,#0e3a5f,#134a72); color:#fff; border-radius:12px; padding:16px 20px; margin-bottom:16px; }
+.report-summary-box .rs-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
+.report-summary-box .rs-item .rs-label{ font-size:11.5px; opacity:.8; }
+.report-summary-box .rs-item .rs-value{ font-family:Rubik; font-weight:700; font-size:18px; margin-top:2px; }
+@media print{
+  #sidenav, #topbarSlot, .toolbar, .no-print, #modal-root, #toast-root { display:none !important; }
+  #main{ padding:0 !important; }
+  body{ background:#fff !important; }
+  .card{ box-shadow:none !important; border:1px solid #ddd !important; }
+  #printReportHeader{ display:block !important; margin-bottom:16px; border-bottom:3px solid #134a72; padding-bottom:10px; }
+  #printReportHeader .prh-company{ font-size:18px; font-weight:800; color:#0e3a5f; }
+  #printReportHeader .prh-title{ font-size:15px; margin-top:4px; }
+  #printReportHeader .prh-meta{ font-size:11px; color:#666; margin-top:4px; }
+  .report-summary-box{ background:#eef2f7 !important; color:#0e3a5f !important; border:1px solid #ccc; }
+  table{ font-size:11px !important; }
+}
 </style>
 </head>
 <body>
@@ -2182,7 +2199,7 @@ function renderMonthlyCashflowView(el){
           <table><thead><tr><th>תאריך</th><th>לקוח</th><th>מס׳ חשבונית</th><th>סכום</th><th>סטטוס</th></tr></thead>
           <tbody>
           ${stats.incomePayments.length? stats.incomePayments.slice().sort((a,b)=>a.date<b.date?-1:1).map(p=>`
-            <tr><td>${fmtDateHe(p.date)}</td><td>${p.customer}</td><td>${p.invoiceNumber}</td><td style="color:var(--green)"><b>${fmtILS(p.amount)}</b></td><td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td></tr>
+            <tr ${p.isCredit?'style="background:#f3e8ff;"':''}><td>${fmtDateHe(p.date)}</td><td>${p.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-left:5px;">🟣 זיכוי</span>':''}${p.customer}</td><td>${p.invoiceNumber}</td><td style="color:${p.isCredit?'#8b5cf6':'var(--green)'}"><b>${fmtILS(p.amount)}</b></td><td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td></tr>
           `).join('') : `<tr><td colspan="5"><div class="empty-state">אין הכנסות בחודש זה</div></td></tr>`}
           </tbody></table>
         </div>
@@ -2233,7 +2250,7 @@ function viewDayDetail(iso, mk, mode){
         <div class="modal-body">
           <p><b>יתרת פתיחה יומית:</b> ${fmtILS(d.openBal)} · <b>תנועה נטו:</b> ${fmtILS(d.net)} · <b>יתרה מצטברת:</b> ${fmtILS(d.closeBal)}</p>
           <div class="section-title">הכנסות (${d.incomeItems.length})</div>
-          ${d.incomeItems.length? d.incomeItems.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;">${p.customer} · חשבונית ${p.invoiceNumber} · <b style="color:var(--green)">${fmtILS(p.amount)}</b> · <span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></div>`).join('') : '<p style="color:var(--muted);font-size:13px;">אין הכנסות ביום זה</p>'}
+          ${d.incomeItems.length? d.incomeItems.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;${p.isCredit?'background:#f3e8ff;':''}">${p.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-left:5px;">🟣 זיכוי</span>':''}${p.customer} · חשבונית ${p.invoiceNumber} · <b style="color:${p.isCredit?'#8b5cf6':'var(--green)'}">${fmtILS(p.amount)}</b> · <span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></div>`).join('') : '<p style="color:var(--muted);font-size:13px;">אין הכנסות ביום זה</p>'}
           <div class="section-title">הוצאות (${d.expenseItems.length})</div>
           ${d.expenseItems.length? d.expenseItems.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;">${p.supplier} · ${p.type} · <b style="color:var(--red)">${fmtILS(p.amount)}</b> · <span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></div>`).join('') : '<p style="color:var(--muted);font-size:13px;">אין הוצאות ביום זה</p>'}
         </div>
@@ -2339,7 +2356,8 @@ function renderReportsView(el){
           <select id="reportYear" onchange="viewState.reportYear=this.value; renderCurrentView();">
             ${[0,1,2].map(i=>{const y=new Date().getFullYear()-i; return `<option value="${y}" ${(viewState.reportYear||new Date().getFullYear())==y?'selected':''}>${y}</option>`;}).join('')}
           </select>
-          <button class="btn btn-blue btn-sm" onclick="window.print()">🖨 הדפסה</button>
+          <button class="btn btn-blue btn-sm" onclick="downloadReportPDF()">📄 הורדה כ-PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 הדפסה</button>
           <button class="btn btn-green btn-sm" onclick="exportReportCSV()">⬇️ ייצוא לאקסל (CSV)</button>
         </div>
       </div>
@@ -2349,58 +2367,103 @@ function renderReportsView(el){
   renderReportBody(sel, viewState.reportYear||new Date().getFullYear());
 }
 
-let lastReportRows = {headers:[], rows:[]};
+let lastReportRows = {headers:[], rows:[], summary:[], title:''};
 
 function renderReportBody(id, year){
   const body = document.getElementById('reportBody');
   const title = REPORT_TYPES.find(r=>r.id===id)?.label||'';
-  let headers=[], rows=[];
+  let headers=[], rows=[], summary=[];
 
   if(id==='income-by-month'){
     headers = ['חודש','סה"כ צפוי','שולם בפועל','יתרה','מס׳ חשבוניות','באיחור'];
+    let totExpected=0, totActual=0, totCount=0, totLate=0;
     for(let m=0;m<12;m++){
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
       rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(sa.incomeTotal), fmtILS(round2(s.incomeTotal-sa.incomeTotal)), s.countIncome, s.lateIncome]);
+      totExpected+=s.incomeTotal; totActual+=sa.incomeTotal; totCount+=s.countIncome; totLate+=s.lateIncome;
     }
+    summary = [
+      {label:'סה"כ הכנסות צפויות לשנה', value: fmtILS(totExpected)},
+      {label:'סה"כ שולם בפועל', value: fmtILS(totActual)},
+      {label:'יתרה לגבייה', value: fmtILS(round2(totExpected-totActual))},
+      {label:'מס׳ חשבוניות', value: totCount},
+      {label:'חשבוניות באיחור', value: totLate}
+    ];
   } else if(id==='expense-by-month'){
     headers = ['חודש','סה"כ צפוי','שולם בפועל','יתרה','מס׳ הוצאות','באיחור'];
+    let totExpected=0, totActual=0, totCount=0, totLate=0;
     for(let m=0;m<12;m++){
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
       rows.push([monthLabel(mk), fmtILS(s.expenseTotal), fmtILS(sa.expenseTotal), fmtILS(round2(s.expenseTotal-sa.expenseTotal)), s.countExpense, s.lateExpense]);
+      totExpected+=s.expenseTotal; totActual+=sa.expenseTotal; totCount+=s.countExpense; totLate+=s.lateExpense;
     }
+    summary = [
+      {label:'סה"כ הוצאות צפויות לשנה', value: fmtILS(totExpected)},
+      {label:'סה"כ שולם בפועל', value: fmtILS(totActual)},
+      {label:'יתרה לתשלום', value: fmtILS(round2(totExpected-totActual))},
+      {label:'מס׳ הוצאות', value: totCount},
+      {label:'הוצאות באיחור', value: totLate}
+    ];
   } else if(id==='monthly-cashflow-report'){
     const mk = viewState.month || todayMonthKey();
     headers=['תאריך','הכנסות','הוצאות','נטו','יתרה מצטברת'];
-    dailyCashflow(mk,'expected').forEach(d=> rows.push([fmtDateHe(d.iso), fmtILS(d.incSum), fmtILS(d.expSum), fmtILS(d.net), fmtILS(d.closeBal)]));
+    const days = dailyCashflow(mk,'expected');
+    days.forEach(d=> rows.push([fmtDateHe(d.iso), fmtILS(d.incSum), fmtILS(d.expSum), fmtILS(d.net), fmtILS(d.closeBal)]));
+    const totInc = days.reduce((s,d)=>s+d.incSum,0), totExp = days.reduce((s,d)=>s+d.expSum,0);
+    summary = [
+      {label:'חודש', value: monthLabel(mk)},
+      {label:'סה"כ הכנסות', value: fmtILS(totInc)},
+      {label:'סה"כ הוצאות', value: fmtILS(totExp)},
+      {label:'תזרים נטו לחודש', value: fmtILS(round2(totInc-totExp))},
+      {label:'יתרת סגירה', value: days.length? fmtILS(days[days.length-1].closeBal) : fmtILS(0)}
+    ];
   } else if(id==='annual-cashflow'){
     headers=['חודש','הכנסות','הוצאות','יתרה חודשית','יתרה מצטברת'];
+    let totInc=0, totExp=0;
     for(let m=0;m<12;m++){
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected');
       rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(s.expenseTotal), fmtILS(s.balance), fmtILS(cumulativeBalanceThroughMonth(mk,'expected'))]);
+      totInc+=s.incomeTotal; totExp+=s.expenseTotal;
     }
+    summary = [
+      {label:'סה"כ הכנסות לשנה', value: fmtILS(totInc)},
+      {label:'סה"כ הוצאות לשנה', value: fmtILS(totExp)},
+      {label:'רווח/הפסד שנתי', value: fmtILS(round2(totInc-totExp))},
+      {label:'יתרה מצטברת בסוף השנה', value: fmtILS(cumulativeBalanceThroughMonth(year+'-12','expected'))}
+    ];
   } else if(id==='unpaid-customers'){
     headers=['לקוח','חשבונית','סכום כולל','שולם','יתרה'];
+    let totRemaining=0;
     DB.incomeInvoices.forEach(inv=>{
       const paid = inv.payments.reduce((s,p)=>s+(p.status==='שולם'?p.amount:(p.paidAmount||0)),0);
       const remaining = round2(inv.totalAmount-paid);
-      if(remaining>0) rows.push([inv.customer, inv.invoiceNumber, fmtILS(inv.totalAmount), fmtILS(paid), fmtILS(remaining)]);
+      if(remaining>0){ rows.push([inv.customer, inv.invoiceNumber, fmtILS(inv.totalAmount), fmtILS(paid), fmtILS(remaining)]); totRemaining+=remaining; }
     });
+    summary = [{label:'מס׳ חשבוניות פתוחות', value: rows.length}, {label:'סה"כ יתרה לגבייה', value: fmtILS(totRemaining)}];
   } else if(id==='late-payments'){
     headers=['סוג','גורם','תאריך','סכום','סטטוס'];
-    allIncomePayments().filter(p=>p.status==='באיחור').forEach(p=> rows.push(['הכנסה', p.customer, fmtDateHe(p.date), fmtILS(p.amount), p.status]));
-    allExpensePayments().filter(p=>p.status==='באיחור').forEach(p=> rows.push(['הוצאה', p.supplier, fmtDateHe(p.date), fmtILS(p.amount), p.status]));
+    let totIncLate=0, totExpLate=0;
+    allIncomePayments().filter(p=>p.status==='באיחור').forEach(p=>{ rows.push(['הכנסה', p.customer, fmtDateHe(p.date), fmtILS(p.amount), p.status]); totIncLate+=p.amount; });
+    allExpensePayments().filter(p=>p.status==='באיחור').forEach(p=>{ rows.push(['הוצאה', p.supplier, fmtDateHe(p.date), fmtILS(p.amount), p.status]); totExpLate+=p.amount; });
+    summary = [{label:'הכנסות באיחור', value: fmtILS(totIncLate)}, {label:'הוצאות באיחור', value: fmtILS(totExpLate)}, {label:'סה"כ רשומות באיחור', value: rows.length}];
   } else if(id==='checks-outstanding'){
     headers=['ספק','בנק','מועד פירעון','סכום','סטטוס'];
-    DB.expenses.filter(e=>e.type==="צ'קים בחוץ").forEach(e=> e.payments.forEach(p=>{ if(p.status!=='שולם'&&p.status!=='בוטל') rows.push([e.supplier, e.extra?.bankName||'-', fmtDateHe(p.date), fmtILS(p.amount), p.status]); }));
+    let tot=0;
+    DB.expenses.filter(e=>e.type==="צ'קים בחוץ").forEach(e=> e.payments.forEach(p=>{ if(p.status!=='שולם'&&p.status!=='בוטל'){ rows.push([e.supplier, e.extra?.bankName||'-', fmtDateHe(p.date), fmtILS(p.amount), p.status]); tot+=p.amount; } }));
+    summary = [{label:'מס׳ צ׳קים בחוץ', value: rows.length}, {label:'סה"כ סכום', value: fmtILS(tot)}];
   } else if(id==='credit-cards'){
     headers=['חברת אשראי','ספק','מועד חיוב','סכום','סטטוס'];
-    DB.expenses.filter(e=>e.type==='כרטיסי אשראי').forEach(e=> e.payments.forEach(p=> rows.push([e.extra?.ccCompany||'-', e.supplier, fmtDateHe(p.date), fmtILS(p.amount), p.status])));
+    let tot=0;
+    DB.expenses.filter(e=>e.type==='כרטיסי אשראי').forEach(e=> e.payments.forEach(p=>{ rows.push([e.extra?.ccCompany||'-', e.supplier, fmtDateHe(p.date), fmtILS(p.amount), p.status]); tot+=p.amount; }));
+    summary = [{label:'מס׳ חיובים', value: rows.length}, {label:'סה"כ חיובי אשראי', value: fmtILS(tot)}];
   } else if(id==='fixed-expenses'){
     headers=['ספק','תיאור','סכום קבוע','תדירות','תאריך סיום'];
-    DB.expenses.filter(e=>e.isRecurring).forEach(e=> rows.push([e.supplier, e.description||'-', fmtILS(e.totalAmount), FREQ_OPTIONS.find(f=>f.v===e.frequency)?.l||e.frequency, e.endDate?fmtDateHe(e.endDate):'ללא תאריך סיום']));
+    let tot=0;
+    DB.expenses.filter(e=>e.isRecurring).forEach(e=>{ rows.push([e.supplier, e.description||'-', fmtILS(e.totalAmount), FREQ_OPTIONS.find(f=>f.v===e.frequency)?.l||e.frequency, e.endDate?fmtDateHe(e.endDate):'ללא תאריך סיום']); tot+=Number(e.totalAmount)||0; });
+    summary = [{label:'מס׳ הוצאות קבועות', value: rows.length}, {label:'סה"כ לחיוב חודשי', value: fmtILS(tot)}];
   } else if(id==='mid-month-cutoff'){
     headers=['חודש','יתרה עד ה-15','יתרה לסוף חודש'];
     for(let m=0;m<12;m++){
@@ -2408,35 +2471,58 @@ function renderReportBody(id, year){
       const s = monthStats(mk,'expected');
       rows.push([monthLabel(mk), fmtILS(s.balance15), fmtILS(s.balance)]);
     }
+    summary = [{label:'שנה', value: year}];
   } else if(id==='forecast-4m'){
     headers=['חודש','הכנסות','הוצאות','יתרה חודשית','יתרה מצטברת'];
+    let totInc=0, totExp=0;
     for(let i=0;i<4;i++){
       const mk = addMonths(todayISO(),i).slice(0,7);
       const s = monthStats(mk,'expected');
       rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(s.expenseTotal), fmtILS(s.balance), fmtILS(cumulativeBalanceThroughMonth(mk,'expected'))]);
+      totInc+=s.incomeTotal; totExp+=s.expenseTotal;
     }
+    summary = [{label:'סה"כ הכנסות (4 חודשים)', value: fmtILS(totInc)}, {label:'סה"כ הוצאות (4 חודשים)', value: fmtILS(totExp)}, {label:'רווח/הפסד תחזית', value: fmtILS(round2(totInc-totExp))}];
   } else if(id==='expected-vs-actual'){
     headers=['חודש','הכנסות צפוי','הכנסות בפועל','הוצאות צפוי','הוצאות בפועל','פער'];
+    let totGap=0;
     for(let m=0;m<12;m++){
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const se = monthStats(mk,'expected'), sa = monthStats(mk,'actual');
       const gap = round2((se.incomeTotal-se.expenseTotal)-(sa.incomeTotal-sa.expenseTotal));
       rows.push([monthLabel(mk), fmtILS(se.incomeTotal), fmtILS(sa.incomeTotal), fmtILS(se.expenseTotal), fmtILS(sa.expenseTotal), fmtILS(gap)]);
+      totGap+=gap;
     }
+    summary = [{label:'סה"כ פער שנתי (צפוי מול בפועל)', value: fmtILS(totGap)}];
   }
 
-  lastReportRows = {headers, rows, title};
+  lastReportRows = {headers, rows, summary, title, year};
+  const now = new Date();
   body.innerHTML = `
-    <h3 style="margin:0 0 14px;font-size:15px;">${title} ${year?('- '+year):''}</h3>
+    <div id="printReportHeader">
+      <div class="prh-company">איזון תעשיות ומתכת בע"מ</div>
+      <div class="prh-title">${title}${year?(' - '+year):''}</div>
+      <div class="prh-meta">הופק בתאריך ${now.toLocaleDateString('he-IL')} בשעה ${now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+    <h3 class="no-print" style="margin:0 0 14px;font-size:15px;">${title} ${year?('- '+year):''}</h3>
+    ${summary.length? `<div class="report-summary-box"><div class="rs-grid">${summary.map(s=>`<div class="rs-item"><div class="rs-label">${s.label}</div><div class="rs-value">${s.value}</div></div>`).join('')}</div></div>` : ''}
     <div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
     <tbody>${rows.length? rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}"><div class="empty-state"><div class="ic">📭</div>אין נתונים להצגה בדוח זה</div></td></tr>`}</tbody>
     </table></div>`;
 }
 
+function downloadReportPDF(){
+  showToast('נפתח חלון הדפסה - בחרו "שמירה כ-PDF" ביעד ההדפסה כדי להוריד את הדוח');
+  setTimeout(()=> window.print(), 300);
+}
+
 function exportReportCSV(){
-  const {headers, rows, title} = lastReportRows;
+  const {headers, rows, title, summary} = lastReportRows;
   let csv = '\uFEFF'+headers.join(',')+'\n';
   rows.forEach(r=> csv += r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')+'\n');
+  if(summary && summary.length){
+    csv += '\n"סיכום"\n';
+    summary.forEach(s=> csv += `"${String(s.label).replace(/"/g,'""')}","${String(s.value).replace(/"/g,'""')}"\n`);
+  }
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
