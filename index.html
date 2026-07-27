@@ -2382,7 +2382,8 @@ function renderReportsView(el){
           <input type="text" id="reportSearch" placeholder="🔍 סינון חופשי בטבלה..." style="min-width:160px;" value="${viewState.reportSearch||''}" oninput="viewState.reportSearch=this.value; renderReportBody(viewState.reportId||'income-by-month', viewState.reportYear||new Date().getFullYear());">
           <button class="btn btn-blue btn-sm" onclick="downloadReportPDF()">📄 הורדה כ-PDF</button>
           <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 הדפסה</button>
-          <button class="btn btn-green btn-sm" onclick="exportReportCSV()">⬇️ ייצוא לאקסל (CSV)</button>
+          <button class="btn btn-green btn-sm" onclick="exportReportStyledExcel()">📊 הורדה כאקסל מעוצב</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportReportCSV()">⬇️ CSV גולמי</button>
         </div>
       </div>
     </div>
@@ -2586,7 +2587,7 @@ function renderReportBody(id, year){
     if(rowMonthKeys.length) rowMonthKeys = keptMonthKeys;
   }
 
-  lastReportRows = {headers, rows, summary, title, year};
+  lastReportRows = {headers, rows, summary, title, year, roles};
   const now = new Date();
   body.innerHTML = `
     <div id="printReportHeader">
@@ -2611,6 +2612,62 @@ function downloadReportPDF(){
   showToast('נפתח חלון הדפסה - בחרו "שמירה כ-PDF" ביעד ההדפסה כדי להוריד את הדוח');
   setTimeout(()=> window.print(), 300);
 }
+
+function exportReportStyledExcel(){
+  const {headers, rows, title, year, summary, roles} = lastReportRows;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('he-IL');
+  const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+
+  const summaryHtml = (summary && summary.length) ? `
+    <table style="border-collapse:collapse;width:100%;margin-bottom:14px;" dir="rtl">
+      <tr>${summary.map(s=>`<td style="background:#134a72;color:#ffffff;font-weight:bold;font-size:11px;padding:8px;border:1px solid #0e3a5f;text-align:center;">${escXls(s.label)}</td>`).join('')}</tr>
+      <tr>${summary.map(s=>`<td style="background:#eef2f7;color:${s.role==='income'?'#1f7a4d':s.role==='expense'?'#b7322a':'#0e3a5f'};font-weight:bold;font-size:14px;padding:10px;border:1px solid #ccd7e0;text-align:center;">${escXls(s.value)}</td>`).join('')}</tr>
+    </table>` : '';
+
+  const headerRow = `<tr>${headers.map((h,i)=>{
+    const role = roles && roles[i];
+    const bg = role==='income' ? '#1f7a4d' : role==='expense' ? '#b7322a' : '#0e3a5f';
+    return `<th style="background:${bg};color:#ffffff;font-weight:bold;padding:9px 10px;border:1px solid #333;font-size:12px;">${escXls(h)}</th>`;
+  }).join('')}</tr>`;
+
+  const bodyRows = rows.map((r,ri)=>{
+    const rowBg = ri%2===0 ? '#ffffff' : '#f3f6f9';
+    return `<tr>${r.map((c,ci)=>{
+      const role = roles && roles[ci];
+      const color = role==='income' ? '#1f7a4d' : role==='expense' ? '#b7322a' : '#222222';
+      const weight = (role==='income'||role==='expense') ? 'bold' : 'normal';
+      return `<td style="background:${rowBg};color:${color};font-weight:${weight};padding:7px 10px;border:1px solid #ddd;text-align:center;font-size:11.5px;">${escXls(c)}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="UTF-8">
+  <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+  <x:Name>${escXls(title)}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions>
+  </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+  </head>
+  <body style="font-family:Arial,sans-serif;direction:rtl;" dir="rtl">
+    <table style="border-collapse:collapse;width:100%;margin-bottom:6px;" dir="rtl">
+      <tr><td style="background:#0e3a5f;color:#ffffff;font-size:18px;font-weight:bold;padding:14px;text-align:center;" colspan="${headers.length}">איזון תעשיות ומתכת בע"מ — ${escXls(title)}${year?(' '+year):''}</td></tr>
+      <tr><td style="background:#eef2f7;color:#0e3a5f;font-size:11px;padding:6px;text-align:center;" colspan="${headers.length}">הופק בתאריך ${dateStr} בשעה ${timeStr}</td></tr>
+    </table>
+    ${summaryHtml}
+    <table style="border-collapse:collapse;width:100%;" dir="rtl">
+      ${headerRow}
+      ${bodyRows || `<tr><td colspan="${headers.length}" style="padding:14px;text-align:center;color:#888;">אין נתונים להצגה בדוח זה</td></tr>`}
+    </table>
+  </body></html>`;
+
+  const blob = new Blob(['\ufeff'+html], {type:'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (title||'report')+'.xls';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('קובץ האקסל המעוצב יוצא בהצלחה');
+}
+function escXls(v){ return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function exportReportCSV(){
   const {headers, rows, title, summary} = lastReportRows;
