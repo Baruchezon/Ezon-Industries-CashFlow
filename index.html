@@ -305,7 +305,7 @@ function expenseTypeBadge(type){
   const c = expenseTypeColor(type);
   return `<span style="background:${c}20;color:${c};border:1px solid ${c}66;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">${type}</span>`;
 }
-const PAYMENT_METHODS = ['מזומן','העברה בנקאית',"צ'ק",'כרטיס אשראי','הוראת קבע','אחר'];
+const PAYMENT_METHODS = ['העברה בנקאית','מזומן',"צ'ק",'כרטיס אשראי','הוראת קבע','אחר'];
 const STATUSES = ['צפוי','שולם','שולם חלקית','באיחור','בוטל','נדחה'];
 const STATUS_CLASS = {'צפוי':'status-expected','שולם':'status-paid','שולם חלקית':'status-partial','באיחור':'status-late','בוטל':'status-cancelled','נדחה':'status-postponed'};
 const FREQ_OPTIONS = [{v:1,l:'חודשי'},{v:2,l:'דו חודשי'},{v:3,l:'רבעוני'},{v:6,l:'חצי שנתי'},{v:12,l:'שנתי'}];
@@ -470,7 +470,7 @@ function monthsAhead(n, startIso){
 function fmtILS(n){
   n = Number(n)||0;
   const neg = n<0; n=Math.abs(n);
-  const s = n.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const s = n.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:2});
   return (neg?'-':'')+s+' ש"ח';
 }
 function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
@@ -483,11 +483,21 @@ function parseMoneyString(str){
 }
 function formatMoneyInputEl(el){
   const caretAtEnd = true; // simple, predictable behavior for a right-to-left currency field
-  let raw = el.value.replace(/[^\d]/g,'');
+  // keep a leading minus (for credit invoices), digits, and a single decimal point (agorot)
+  const isNeg = /^\s*-/.test(el.value);
+  let raw = el.value.replace(/[^\d.]/g,'');
+  const firstDot = raw.indexOf('.');
+  if(firstDot !== -1){
+    // collapse any extra dots the user typed, and cap at 2 decimal digits
+    raw = raw.slice(0, firstDot+1) + raw.slice(firstDot+1).replace(/\./g,'').slice(0,2);
+  }
   raw = raw.replace(/^0+(?=\d)/,'');
-  if(raw===''){ el.value=''; return; }
-  const num = Number(raw)||0;
-  el.value = num.toLocaleString('he-IL') + ' ש"ח';
+  if(raw===''||raw==='.'){ el.value = isNeg ? '-' : ''; return; }
+  const dotIdx = raw.indexOf('.');
+  const intPart = dotIdx===-1 ? raw : raw.slice(0,dotIdx);
+  const decPart = dotIdx===-1 ? '' : raw.slice(dotIdx); // includes the dot itself, e.g. ".5"
+  const intNum = Number(intPart)||0;
+  el.value = (isNeg?'-':'') + intNum.toLocaleString('he-IL') + decPart + ' ש"ח';
   if(caretAtEnd) el.setSelectionRange && el.setSelectionRange(el.value.length-4, el.value.length-4);
 }
 function moneyInputAttrs(){
@@ -532,7 +542,7 @@ function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
 function buildEqualSplit(totalAmount, numPayments, firstDate, frequencyMonths){
   frequencyMonths = frequencyMonths || 1;
-  const per = Math.floor((totalAmount/numPayments)*100)/100;
+  const per = Math.trunc((totalAmount/numPayments)*100)/100;
   let sum = 0;
   const rows = [];
   for(let i=0;i<numPayments;i++){
@@ -611,7 +621,7 @@ function ensureDefaultCreditCardExpense(){
 function allIncomePayments(){
   const out=[];
   DB.incomeInvoices.forEach(inv=>{
-    inv.payments.forEach(p=> out.push({...p, invoiceId:inv.id, customer:inv.customer, invoiceNumber:inv.invoiceNumber, notes:inv.notes}));
+    inv.payments.forEach(p=> out.push({...p, invoiceId:inv.id, customer:inv.customer, invoiceNumber:inv.invoiceNumber, notes:inv.notes, isCredit:!!inv.isCredit}));
   });
   return out;
 }
@@ -1069,15 +1079,25 @@ function renderDashboardView(el){
    ========================================================================= */
 let incomeDraftPayments = null;
 let incomeAmountMode = 'total'; // 'total' = amount to be divided across payments, 'perPayment' = fixed amount for each payment (e.g. per-check amount)
+let incomeInvoiceType = 'regular'; // 'regular' (default) or 'credit' (חשבונית זיכוי - negative amount)
 
 function renderIncomeEntryView(el, editInvoice){
   incomeDraftPayments = null;
   incomeAmountMode = 'total';
   const inv = editInvoice || null;
+  incomeInvoiceType = inv && inv.isCredit ? 'credit' : 'regular';
   currentSplitType = inv ? (inv.splitType||'equal') : 'manual';
   el.innerHTML = `
     <div class="card">
       <div class="section-title">🧾 פרטי החשבונית</div>
+      <div class="field">
+        <label>סוג חשבונית</label>
+        <div class="pill-toggle">
+          <div class="pill ${incomeInvoiceType==='regular'?'active':''}" data-itype="regular" onclick="setIncomeInvoiceType('regular')">חשבונית רגילה</div>
+          <div class="pill ${incomeInvoiceType==='credit'?'active':''}" data-itype="credit" onclick="setIncomeInvoiceType('credit')">🟣 חשבונית זיכוי</div>
+        </div>
+        <div id="creditHint" style="display:${incomeInvoiceType==='credit'?'block':'none'};font-size:12px;color:#8b5cf6;margin-top:4px;">חשבונית זיכוי - יש להזין את הסכום כמספר שלילי (למשל -500)</div>
+      </div>
       <div class="form-grid">
         <div class="field"><label>שם הלקוח *</label><input id="f_customer" list="customersList" value="${inv?inv.customer:''}"></div>
         <datalist id="customersList">${DB.customers.map(c=>`<option value="${c.name}">`).join('')}</datalist>
@@ -1115,7 +1135,7 @@ function renderIncomeEntryView(el, editInvoice){
       <div id="incomePreviewWrap" style="margin-top:18px;"></div>
 
       <div style="margin-top:20px;display:flex;gap:10px;">
-        <button class="btn btn-green" id="saveIncomeBtn" onclick="saveIncomeInvoice(${inv?`'${inv.id}'`:'null'})" disabled>💾 שמור חשבונית</button>
+        <button class="btn btn-green" id="saveIncomeBtn" onclick="saveIncomeInvoice(${inv?`'${inv.id}'`:'null'})">💾 שמור חשבונית</button>
         <button class="btn btn-ghost" onclick="navigateTo('income-table')">ביטול</button>
       </div>
     </div>
@@ -1141,6 +1161,14 @@ function setIncomeAmountMode(mode){
   buildIncomePreview();
 }
 
+function setIncomeInvoiceType(type){
+  incomeInvoiceType = type;
+  document.querySelectorAll('.pill[data-itype]').forEach(p=> p.classList.toggle('active', p.dataset.itype===type));
+  const hint = document.getElementById('creditHint');
+  if(hint) hint.style.display = type==='credit' ? 'block' : 'none';
+  incomeDraftPayments = null;
+}
+
 function onIncomeAmountOrDateChange(){
   // Critical safety net: if the user edits the top-level date/count/amount fields on an
   // already-loaded invoice (e.g. correcting a due date) without re-clicking "חשב תצוגה מקדימה",
@@ -1164,7 +1192,9 @@ function buildIncomePreview(forceType, existingPayments){
   const type = forceType || currentSplitType;
   const wrap = document.getElementById('incomePreviewWrap');
 
-  if(enteredAmount<=0){ showToast('יש להזין סכום חשבונית תקין', true); return; }
+  if(enteredAmount===0){ showToast('יש להזין סכום חשבונית תקין', true); return; }
+  if(incomeInvoiceType==='credit' && enteredAmount>0){ showToast('חשבונית זיכוי - יש להזין את הסכום כמספר שלילי', true); return; }
+  if(incomeInvoiceType!=='credit' && enteredAmount<0){ showToast('סכום חשבונית רגילה חייב להיות חיובי', true); return; }
 
   const total = incomeAmountMode==='perPayment' ? round2(enteredAmount*num) : enteredAmount;
 
@@ -1213,12 +1243,26 @@ function saveIncomeInvoice(editId){
   const customer = document.getElementById('f_customer').value.trim();
   const invoiceNumber = document.getElementById('f_invoiceNumber').value.trim();
   const invoiceDate = document.getElementById('f_invoiceDate').value;
-  const totalAmount = incomeDraftPayments ? round2(incomeDraftPayments.reduce((s,p)=>s+p.amount,0)) : parseMoneyString(document.getElementById('f_totalAmount').value);
   const notes = document.getElementById('f_notes').value;
   const status = document.getElementById('f_status').value;
 
-  if(!customer || !invoiceNumber || !invoiceDate || totalAmount<=0 || !incomeDraftPayments){
-    showToast('יש למלא את כל השדות החיוניים ולחשב תצוגה מקדימה', true); return;
+  // A simple invoice (no split, no checks) shouldn't require clicking
+  // "חשב תצוגה מקדימה" first - build the breakdown automatically if needed.
+  if(!incomeDraftPayments){
+    buildIncomePreview();
+  }
+
+  const totalAmount = incomeDraftPayments ? round2(incomeDraftPayments.reduce((s,p)=>s+p.amount,0)) : parseMoneyString(document.getElementById('f_totalAmount').value);
+  const isCredit = incomeInvoiceType === 'credit';
+
+  if(!customer || !invoiceNumber || !invoiceDate || totalAmount===0 || !incomeDraftPayments){
+    showToast('יש למלא את כל השדות החיוניים (לקוח, מספר חשבונית, תאריך וסכום תקין)', true); return;
+  }
+  if(isCredit && totalAmount>0){
+    showToast('חשבונית זיכוי - יש להזין את הסכום כמספר שלילי', true); return;
+  }
+  if(!isCredit && totalAmount<0){
+    showToast('סכום חשבונית רגילה חייב להיות חיובי (עבור זיכוי, בחר "חשבונית זיכוי" למעלה)', true); return;
   }
 
   const dup = DB.incomeInvoices.find(i=> i.invoiceNumber===invoiceNumber && i.id!==editId);
@@ -1226,11 +1270,11 @@ function saveIncomeInvoice(editId){
     incomeDraftPayments.forEach(p=> p.status = p.status||status);
     if(editId){
       const inv = DB.incomeInvoices.find(i=>i.id===editId);
-      Object.assign(inv, {customer, invoiceNumber, invoiceDate, totalAmount, notes, splitType: currentSplitType, numPayments: incomeDraftPayments.length, payments: incomeDraftPayments.map(p=>({...p, id:p.id||uid('ipay'), status: p.status||status})), updatedAt: nowISO()});
+      Object.assign(inv, {customer, invoiceNumber, invoiceDate, totalAmount, notes, isCredit, splitType: currentSplitType, numPayments: incomeDraftPayments.length, payments: incomeDraftPayments.map(p=>({...p, id:p.id||uid('ipay'), status: p.status||status})), updatedAt: nowISO()});
       logAudit('incomeInvoice', editId, 'update');
     } else {
       const newInv = {
-        id: uid('inv'), customer, invoiceNumber, invoiceDate, totalAmount, notes,
+        id: uid('inv'), customer, invoiceNumber, invoiceDate, totalAmount, notes, isCredit,
         splitType: currentSplitType, numPayments: incomeDraftPayments.length,
         payments: incomeDraftPayments.map(p=>({...p, id:uid('ipay'), status})),
         createdBy: DB.currentUser, createdAt: nowISO(), updatedAt: nowISO()
@@ -1279,9 +1323,10 @@ function renderInvoicesListView(el){
         <tbody>
         ${invs.length? invs.map(inv=>{
           const singlePayment = inv.payments.length===1;
+          const creditStyle = inv.isCredit ? 'style="background:#f3e8ff;"' : '';
           return `
-          <tr>
-            <td><input value="${inv.customer}" style="min-width:110px" onchange="updateInvoiceField('${inv.id}','customer',this.value)"></td>
+          <tr ${creditStyle}>
+            <td>${inv.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;margin-left:6px;">🟣 זיכוי</span>':''}<input value="${inv.customer}" style="min-width:110px" onchange="updateInvoiceField('${inv.id}','customer',this.value)"></td>
             <td><input value="${inv.invoiceNumber}" style="min-width:90px" onchange="updateInvoiceField('${inv.id}','invoiceNumber',this.value)"></td>
             <td><input ${moneyInputAttrs()} style="min-width:120px" value="${fmtMoneyInputValue(inv.totalAmount)}" onchange="updateInvoiceField('${inv.id}','totalAmount',this.value)">
               ${!singlePayment?`<div style="font-size:10px;color:var(--muted);">${inv.numPayments} תשלומים - יחולק מחדש באופן שווה/יחסי</div>`:''}</td>
@@ -1331,7 +1376,7 @@ function updateInvoiceField(invId, field, rawValue){
           else { p.amount = round2(p.amount * (newTotal/oldTotal)); sum = round2(sum+p.amount); }
         });
       } else {
-        const per = Math.floor((newTotal/n)*100)/100;
+        const per = Math.trunc((newTotal/n)*100)/100;
         let sum = 0;
         inv.payments.forEach((p,i)=>{
           if(i===n-1){ p.amount = round2(newTotal - sum); }
@@ -1482,8 +1527,8 @@ function renderIncomeTableView(el){
         ${rows.length? rows.map(p=>{
           const paid = p.status==='שולם'?p.amount:(p.paidAmount||0);
           const remaining = round2(p.amount-paid);
-          return `<tr>
-            <td>${p.customer}</td><td>${p.invoiceNumber}</td><td>${fmtDateHe(p.date)}</td><td><b>${fmtILS(p.amount)}</b></td>
+          return `<tr ${p.isCredit?'style="background:#f3e8ff;"':''}>
+            <td>${p.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;margin-left:6px;">🟣 זיכוי</span>':''}${p.customer}</td><td>${p.invoiceNumber}</td><td>${fmtDateHe(p.date)}</td><td><b>${fmtILS(p.amount)}</b></td>
             <td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td>
             <td>${fmtILS(paid)}</td><td>${fmtILS(remaining)}</td><td>${p.notes||''}</td>
             <td><div class="rowbtns">
@@ -2577,6 +2622,10 @@ function permanentDelete(rbId){
   // without requiring a manual refresh - re-renders the current view if new data arrived
   setInterval(async ()=>{
     if(!supabaseClient) return;
+    // never blow away an in-progress, unsaved form - skip this refresh entirely
+    // while the user is actively composing a new invoice/expense. The next
+    // successful poll after they leave this screen will pick up any missed changes.
+    if(currentView==='income-entry' || currentView==='expense-entry') return;
     try{
       const before = JSON.stringify(DB);
       await loadDB();
