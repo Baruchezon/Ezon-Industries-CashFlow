@@ -2402,8 +2402,8 @@ let lastReportRows = {headers:[], rows:[], summary:[], title:''};
 
 const SCOPABLE_REPORTS = ['monthly-cashflow-report','annual-cashflow','forecast-4m','expected-vs-actual'];
 const REPORT_COLUMN_ROLES = {
-  'income-by-month': ['month','income','income','income','count','count'],
-  'expense-by-month': ['month','expense','expense','expense','count','count'],
+  'income-by-month': ['month','date','text','text','text','income','text'],
+  'expense-by-month': ['month','date','text','text','text','text','expense','text'],
   'monthly-cashflow-report': ['date','income','expense','net','net'],
   'annual-cashflow': ['month','income','expense','net','net'],
   'unpaid-customers': ['text','text','income','income','income'],
@@ -2428,35 +2428,39 @@ function renderReportBody(id, year){
   let headers=[], rows=[], summary=[], rowMonthKeys=[];
 
   if(id==='income-by-month'){
-    headers = ['חודש','סה"כ צפוי','שולם בפועל','יתרה','מס׳ חשבוניות','באיחור'];
+    headers = ['חודש','תאריך','לקוח','מס\' חשבונית','הערות','סכום','סטטוס'];
     let totExpected=0, totActual=0, totCount=0, totLate=0;
     reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
-      rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(sa.incomeTotal), fmtILS(round2(s.incomeTotal-sa.incomeTotal)), s.countIncome, s.lateIncome]);
-      rowMonthKeys.push(mk);
+      s.incomePayments.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{
+        rows.push([monthLabel(mk), fmtDateHe(p.date), (p.isCredit?'🟣 זיכוי - ':'')+p.customer, p.invoiceNumber, p.notes||'-', fmtILS(p.amount), p.status]);
+        rowMonthKeys.push(mk);
+      });
       totExpected+=s.incomeTotal; totActual+=sa.incomeTotal; totCount+=s.countIncome; totLate+=s.lateIncome;
     });
     summary = [
-      {label:'סה"כ הכנסות צפויות לשנה', value: fmtILS(totExpected)},
-      {label:'סה"כ שולם בפועל', value: fmtILS(totActual)},
+      {label:'סה"כ הכנסות צפויות לשנה', value: fmtILS(totExpected), role:'income'},
+      {label:'סה"כ שולם בפועל', value: fmtILS(totActual), role:'income'},
       {label:'יתרה לגבייה', value: fmtILS(round2(totExpected-totActual))},
       {label:'מס׳ חשבוניות', value: totCount},
       {label:'חשבוניות באיחור', value: totLate}
     ];
   } else if(id==='expense-by-month'){
-    headers = ['חודש','סה"כ צפוי','שולם בפועל','יתרה','מס׳ הוצאות','באיחור'];
+    headers = ['חודש','תאריך','ספק','סוג הוצאה','תיאור','אמצעי תשלום','סכום','סטטוס'];
     let totExpected=0, totActual=0, totCount=0, totLate=0;
     reportMonthRange().forEach(m=>{
       const mk = year+'-'+String(m+1).padStart(2,'0');
       const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
-      rows.push([monthLabel(mk), fmtILS(s.expenseTotal), fmtILS(sa.expenseTotal), fmtILS(round2(s.expenseTotal-sa.expenseTotal)), s.countExpense, s.lateExpense]);
-      rowMonthKeys.push(mk);
+      s.expensePayments.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{
+        rows.push([monthLabel(mk), fmtDateHe(p.date), p.supplier, p.type, p.description||'-', p.paymentMethod||'-', fmtILS(p.amount), p.status]);
+        rowMonthKeys.push(mk);
+      });
       totExpected+=s.expenseTotal; totActual+=sa.expenseTotal; totCount+=s.countExpense; totLate+=s.lateExpense;
     });
     summary = [
-      {label:'סה"כ הוצאות צפויות לשנה', value: fmtILS(totExpected)},
-      {label:'סה"כ שולם בפועל', value: fmtILS(totActual)},
+      {label:'סה"כ הוצאות צפויות לשנה', value: fmtILS(totExpected), role:'expense'},
+      {label:'סה"כ שולם בפועל', value: fmtILS(totActual), role:'expense'},
       {label:'יתרה לתשלום', value: fmtILS(round2(totExpected-totActual))},
       {label:'מס׳ הוצאות', value: totCount},
       {label:'הוצאות באיחור', value: totLate}
