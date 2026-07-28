@@ -387,7 +387,7 @@ function defaultData(){
     incomeInvoices:[],   // {id, customer, invoiceNumber, invoiceDate, totalAmount, numPayments, splitType, notes, createdBy, createdAt, updatedAt, payments:[]}
     expenses:[],         // {id, type, supplier, description, totalAmount, numPayments, firstDueDate, frequency, paymentMethod, reference, notes, isRecurring, endDate, extra:{}, createdBy, createdAt, updatedAt, payments:[]}
     recurringRules:[],   // {id, expenseId, frequency, endDate or null, active}
-    openingBalances:[{id:uid('ob'), amount:0, date: todayISO(), accountName:'חשבון ראשי', notes:''}],
+    openingBalances:[{id:uid('ob'), amount:0, date: todayMonthKey()+'-01', accountName:'חשבון ראשי', notes:''}],
     monthlyBankBalances:[], // per-month manual bank-balance overrides: {id, month:'YYYY-MM', amount, notes} - always represents the balance on the 1st of that month
     warningThreshold: 10000,
     expenseCategories: EXPENSE_TYPES.slice(),
@@ -445,10 +445,12 @@ async function loadDB(){
 
   window.DB = DB; // exposed for console debugging
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }catch(e){} // keep local cache fresh too
+  invalidateCashflowCaches();
   return DB;
 }
 
 function saveDB(){
+  invalidateCashflowCaches();
   // 1) always save locally first - instant, synchronous, never blocked by network
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
@@ -670,18 +672,33 @@ function ensureDefaultCreditCardExpense(){
 }
 
 /* ---------- lookups ---------- */
+// Memoization: these get called MANY times per render (once per month in any
+// cumulative-balance walk, once per dashboard card, etc.) and recomputing the
+// full flattened payment lists + month stats from scratch every single call
+// gets slower as the dataset and time-since-last-anchor grow - this can turn
+// into a real performance problem on weaker mobile CPUs. Cache invalidates on
+// any data load/save.
+let _paymentsCache = null;
+let _monthStatsCache = {};
+function invalidateCashflowCaches(){ _paymentsCache = null; _monthStatsCache = {}; }
 function allIncomePayments(){
+  if(_paymentsCache && _paymentsCache.income) return _paymentsCache.income;
   const out=[];
   DB.incomeInvoices.forEach(inv=>{
     inv.payments.forEach(p=> out.push({...p, invoiceId:inv.id, customer:inv.customer, invoiceNumber:inv.invoiceNumber, notes:inv.notes, isCredit:!!inv.isCredit}));
   });
+  _paymentsCache = _paymentsCache || {};
+  _paymentsCache.income = out;
   return out;
 }
 function allExpensePayments(){
+  if(_paymentsCache && _paymentsCache.expense) return _paymentsCache.expense;
   const out=[];
   DB.expenses.forEach(ex=>{
     ex.payments.forEach(p=> out.push({...p, expenseId:ex.id, type:ex.type, supplier:ex.supplier, description:ex.description, paymentMethod:ex.paymentMethod, reference:ex.reference}));
   });
+  _paymentsCache = _paymentsCache || {};
+  _paymentsCache.expense = out;
   return out;
 }
 function groupExpensesByType(items){
@@ -691,7 +708,7 @@ function groupExpensesByType(items){
 }
 
 function getOpeningBalance(){
-  if(!DB.openingBalances.length) return {amount:0,date:todayISO()};
+  if(!DB.openingBalances.length) return {amount:0,date: todayMonthKey()+'-01'};
   return DB.openingBalances[DB.openingBalances.length-1];
 }
 function getMonthlyBankBalanceOverride(monthKeyStr){
@@ -712,6 +729,8 @@ function findBalanceAnchor(monthKeyStr){
 function monthStats(monthKeyStr, mode){
   // mode: 'expected' (default) uses all payments by date; 'actual' uses only paid/partial with paidAmount
   mode = mode || 'expected';
+  const cacheKey = monthKeyStr+'|'+mode;
+  if(_monthStatsCache[cacheKey]) return _monthStatsCache[cacheKey];
   const inc = allIncomePayments().filter(p=> monthKey(p.date)===monthKeyStr && p.status!=='בוטל');
   const exp = allExpensePayments().filter(p=> monthKey(p.date)===monthKeyStr && p.status!=='בוטל');
 
@@ -732,13 +751,15 @@ function monthStats(monthKeyStr, mode){
   const lateIncome = inc.filter(p=>p.status==='באיחור').length;
   const lateExpense = exp.filter(p=>p.status==='באיחור').length;
 
-  return {
+  const result = {
     monthKeyStr, incomeTotal, expenseTotal, balance: round2(incomeTotal-expenseTotal),
     income15, expense15, balance15: round2(income15-expense15),
     countIncome: inc.length, countExpense: exp.length,
     lateIncome, lateExpense,
     incomePayments: inc, expensePayments: exp
   };
+  _monthStatsCache[cacheKey] = result;
+  return result;
 }
 
 // cumulative balance up to & including a given month key, from the nearest known
@@ -2126,6 +2147,10 @@ function renderExpenseTableView(el){
 
     <div class="card">
       <div class="toolbar">
+        <div class="pill-toggle">
+          <div class="pill ${(st.expenseView||'byPayment')==='byPayment'?'active':''}" onclick="viewState.expenseView='byPayment'; renderCurrentView();">לפי תשלום</div>
+          <div class="pill ${st.expenseView==='byExpense'?'active':''}" onclick="viewState.expenseView='byExpense'; renderCurrentView();">📋 לפי הוצאה (כולל תשלומים)</div>
+        </div>
         <div class="search-box"><input type="text" placeholder="חיפוש לפי ספק, תיאור, אסמכתה..." value="${filters.search||''}" oninput="setExpenseFilter('search',this.value)"><span class="ic">🔍</span></div>
         <div class="filters">
           <select onchange="setExpenseFilter('type',this.value)"><option value="">כל הסוגים</option>${DB.expenseCategories.map(t=>`<option ${filters.type===t?'selected':''}>${t}</option>`).join('')}</select>
@@ -2134,6 +2159,38 @@ function renderExpenseTableView(el){
           <button class="btn btn-ghost btn-sm" onclick="clearExpenseFilters()">נקה סינון</button>
         </div>
       </div>
+      ${st.expenseView==='byExpense' ? (()=>{
+        const groups = {};
+        rows.forEach(p=>{
+          if(!groups[p.expenseId]) groups[p.expenseId] = { expenseId:p.expenseId, supplier:p.supplier, type:p.type, description:p.description, paymentMethod:p.paymentMethod, amount:0, paid:0, count:0 };
+          const g = groups[p.expenseId];
+          g.amount = round2(g.amount + p.amount);
+          g.paid = round2(g.paid + (p.status==='שולם'?p.amount:(p.paidAmount||0)));
+          g.count++;
+        });
+        const glist = Object.values(groups);
+        return `<div class="table-wrap">
+          <table><thead><tr>
+            <th>סוג</th><th>ספק</th><th>תיאור</th><th>תשלומים בטווח זה</th><th>סה"כ בטווח</th><th>שולם</th><th>יתרה</th><th>אמצעי תשלום</th><th>פעולות</th>
+          </tr></thead>
+          <tbody>
+          ${glist.length? glist.map(g=>{
+            const ex = findExpense(g.expenseId);
+            const totalInstallments = ex ? ex.payments.length : g.count;
+            const remaining = round2(g.amount-g.paid);
+            return `<tr>
+              <td>${expenseTypeBadge(g.type)}</td><td>${g.supplier}</td><td>${g.description||'-'}</td>
+              <td>${totalInstallments>1?`<span style="background:#2563a8;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">📅 ${totalInstallments} תשלומים</span>`:'תשלום בודד'}</td>
+              <td><b>${fmtILS(g.amount)}</b></td><td>${fmtILS(g.paid)}</td><td>${fmtILS(remaining)}</td><td>${g.paymentMethod||'-'}</td>
+              <td><div class="rowbtns">
+                <button class="iconsm" title="עריכה" onclick="editExpense('${g.expenseId}')">✏️</button>
+                <button class="iconsm" title="מחיקת ההוצאה כולה (כל התשלומים)" onclick="deleteWholeExpense('${g.expenseId}')">🧹</button>
+              </div></td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="9"><div class="empty-state"><div class="ic">📭</div>לא נמצאו רשומות תואמות</div></td></tr>`}
+          </tbody></table>
+        </div>`;
+      })() : `
       <div class="table-wrap">
         <table><thead><tr>
           <th>סוג</th><th>ספק</th><th>תיאור</th><th>מועד פירעון</th><th>סכום</th><th>סטטוס</th><th>שולם בפועל</th><th>יתרה</th><th>אמצעי תשלום</th><th>פעולות</th>
@@ -2157,7 +2214,7 @@ function renderExpenseTableView(el){
           </tr>`;
         }).join('') : `<tr><td colspan="10"><div class="empty-state"><div class="ic">📭</div>לא נמצאו רשומות תואמות</div></td></tr>`}
         </tbody></table>
-      </div>
+      </div>`}
     </div>
   `;
 }
@@ -2312,6 +2369,34 @@ function renderMonthlyCashflowView(el){
         })),
         [{key:'income', color:'var(--green)', name:'הכנסות'},{key:'expense', color:'var(--red)', name:'הוצאות'}]
       )}
+    </div>
+
+    <div class="card" style="margin-top:16px;margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;">📋 טבלת תזרים יומי מלאה - ${monthLabel(mk)}</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>תאריך</th><th>הכנסות</th><th>הוצאות</th><th>תזרים יומי נטו</th><th>יתרה מצטברת</th></tr></thead>
+          <tbody>
+            <tr style="background:${days.hasBankOverride?'#f5f0ff':'#eef2f7'};">
+              <td colspan="4" style="font-weight:700;color:${days.hasBankOverride?'#6b3fa0':'#0e3a5f'};">
+                יתרת פתיחה לתחילת החודש
+                ${days.hasBankOverride ? '<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-right:6px;">🏦 מהבנק</span>' : '<span style="color:var(--muted);font-weight:400;font-size:11.5px;">(מהחודש הקודם)</span>'}
+              </td>
+              <td style="font-weight:700;color:${days.hasBankOverride?'#6b3fa0':'#0e3a5f'};">${fmtILS(opening)}</td>
+            </tr>
+            ${days.map(d=>{
+              const active = d.incSum || d.expSum;
+              return `<tr style="${active?'':'color:var(--muted);'}">
+                <td>${fmtDateHe(d.iso)}</td>
+                <td style="${d.incSum?'color:var(--green);font-weight:600;':''}">${d.incSum? fmtILS(d.incSum) : '—'}</td>
+                <td style="${d.expSum?'color:var(--red);font-weight:600;':''}">${d.expSum? fmtILS(d.expSum) : '—'}</td>
+                <td style="${active? (d.net>=0?'color:var(--green);':'color:var(--red);') : ''}">${active? fmtILS(d.net) : '—'}</td>
+                <td><b style="color:${d.closeBal>=0?'inherit':'var(--red)'}">${fmtILS(d.closeBal)}</b></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="grid2" style="margin-bottom:16px;">
