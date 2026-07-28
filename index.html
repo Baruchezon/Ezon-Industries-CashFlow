@@ -400,11 +400,24 @@ function defaultData(){
 
 let DB = null;
 
+// Wraps a promise with a hard timeout - if the underlying call (e.g. a Supabase
+// request over a slow/unstable mobile connection) never resolves OR rejects,
+// this guarantees we still move on instead of leaving the app hanging forever
+// on a blank screen with nothing rendered.
+function withTimeout(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=> setTimeout(()=> reject(new Error('Timeout ('+ms+'ms) waiting for: '+(label||'network call'))), ms))
+  ]);
+}
 async function loadDB(){
   let loadedFromCloud = false;
   try{
     if(supabaseClient){
-      const { data, error } = await supabaseClient.from('app_state').select('data,updated_at').eq('id','main').maybeSingle();
+      const { data, error } = await withTimeout(
+        supabaseClient.from('app_state').select('data,updated_at').eq('id','main').maybeSingle(),
+        8000, 'loadDB cloud fetch'
+      );
       if(!error && data && data.data){
         DB = data.data;
         loadedFromCloud = true;
@@ -2556,10 +2569,12 @@ function deleteMonthlyBankBalance(month){
   });
 }
 function renderOpeningBalanceView(el){
-  const ob = getOpeningBalance();
+  const editId = viewState.editOpeningBalanceId;
+  const editing = editId ? DB.openingBalances.find(o=>o.id===editId) : null;
+  const ob = editing || getOpeningBalance();
   el.innerHTML = `
     <div class="card" style="max-width:560px;">
-      <div class="section-title" style="margin-top:0;">🏦 יתרת פתיחה נוכחית</div>
+      <div class="section-title" style="margin-top:0;">🏦 ${editing?'עריכת יתרת פתיחה':'יתרת פתיחה נוכחית'}</div>
       <div class="form-grid">
         <div class="field"><label>יתרת פתיחה (ש"ח)</label><input ${moneyInputAttrs()} id="ob_amount" value="${fmtMoneyInputValue(ob.amount)}"></div>
         <div class="field"><label>תאריך היתרה</label><input type="date" id="ob_date" value="${ob.date}"></div>
@@ -2567,25 +2582,51 @@ function renderOpeningBalanceView(el){
         <div class="field"><label>סף אזהרה תזרימי (ש"ח)</label><input ${moneyInputAttrs()} id="ob_threshold" value="${fmtMoneyInputValue(DB.warningThreshold)}"></div>
       </div>
       <div class="field"><label>הערות</label><textarea id="ob_notes" rows="2">${ob.notes||''}</textarea></div>
-      <button class="btn btn-green" onclick="saveOpeningBalance()">💾 שמור</button>
+      <button class="btn btn-green" onclick="saveOpeningBalance('${editing?editing.id:''}')">💾 ${editing?'עדכון':'שמור'}</button>
+      ${editing? `<button class="btn btn-ghost" onclick="viewState.editOpeningBalanceId=null; renderCurrentView();" style="margin-right:8px;">ביטול עריכה</button>`:''}
       ${DB.openingBalances.length>1?`
         <div class="section-title">היסטוריית יתרות פתיחה</div>
-        <div class="table-wrap"><table><thead><tr><th>תאריך</th><th>סכום</th><th>חשבון</th><th>הערות</th></tr></thead>
-        <tbody>${DB.openingBalances.slice().reverse().map(o=>`<tr><td>${fmtDateHe(o.date)}</td><td>${fmtILS(o.amount)}</td><td>${o.accountName||'-'}</td><td>${o.notes||'-'}</td></tr>`).join('')}</tbody>
+        <div class="table-wrap"><table><thead><tr><th>תאריך</th><th>סכום</th><th>חשבון</th><th>הערות</th><th></th></tr></thead>
+        <tbody>${DB.openingBalances.slice().reverse().map(o=>`<tr>
+          <td>${fmtDateHe(o.date)}</td><td>${fmtILS(o.amount)}</td><td>${o.accountName||'-'}</td><td>${o.notes||'-'}</td>
+          <td style="white-space:nowrap;"><button class="btn btn-sm" onclick="viewState.editOpeningBalanceId='${o.id}'; renderCurrentView();">✏️</button> <button class="btn btn-sm" onclick="deleteOpeningBalance('${o.id}')">🗑</button></td>
+        </tr>`).join('')}</tbody>
         </table></div>`:''}
     </div>
   `;
 }
-function saveOpeningBalance(){
+function saveOpeningBalance(editId){
   const amount = parseMoneyString(document.getElementById('ob_amount').value);
   const date = document.getElementById('ob_date').value;
   const accountName = document.getElementById('ob_name').value;
   const notes = document.getElementById('ob_notes').value;
   const threshold = parseMoneyString(document.getElementById('ob_threshold').value);
-  DB.openingBalances.push({id:uid('ob'), amount, date, accountName, notes});
+  if(editId){
+    const ob = DB.openingBalances.find(o=>o.id===editId);
+    if(ob) Object.assign(ob, {amount, date, accountName, notes});
+    logAudit('openingBalance', editId, 'update');
+    viewState.editOpeningBalanceId = null;
+  } else {
+    DB.openingBalances.push({id:uid('ob'), amount, date, accountName, notes});
+    logAudit('openingBalance', 'main', 'update');
+  }
   DB.warningThreshold = threshold;
-  logAudit('openingBalance', 'main', 'update');
+  invalidateCashflowCaches();
   saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+function deleteOpeningBalance(id){
+  confirmDialog('למחוק את רשומת יתרת הפתיחה הזו?', ()=>{
+    const removed = DB.openingBalances.find(o=>o.id===id);
+    DB.openingBalances = DB.openingBalances.filter(o=>o.id!==id);
+    if(DB.openingBalances.length===0){
+      // never leave the list fully empty - keep a baseline zero entry
+      DB.openingBalances.push({id:uid('ob'), amount:0, date: todayMonthKey()+'-01', accountName:'חשבון ראשי', notes:''});
+    }
+    if(removed) DB.recycleBin.push({id:uid('rb'), entity:'openingBalance', record:removed, deletedAt:nowISO(), deletedBy:DB.currentUser});
+    logAudit('openingBalance', id, 'delete');
+    invalidateCashflowCaches();
+    saveDB(); showToast('נמחק בהצלחה'); renderCurrentView();
+  });
 }
 /* =========================================================================
    דוחות
@@ -3104,7 +3145,19 @@ function permanentDelete(rbId){
       setTimeout(()=>{ t.remove(); }, 8000);
     }catch(_){}
   });
-  await loadDB();
+  try{
+    await loadDB();
+  }catch(e){
+    // loadDB already falls back to localStorage/defaults internally, but this
+    // is one more guarantee: no matter what happens, the app must still render
+    // something instead of staying on a blank page forever.
+    console.error('init: loadDB failed unexpectedly, falling back to local/default data', e);
+    showGlobalErrorBanner(e);
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      DB = raw ? JSON.parse(raw) : defaultData();
+    }catch(e2){ DB = defaultData(); }
+  }
   ensureDefaultCreditCardExpense();
   navigateTo('dashboard');
   updateCloudStatusUI();
