@@ -908,7 +908,22 @@ function renderCurrentView(){
   };
   const fn = map[currentView] || renderDashboardView;
   document.getElementById('viewsSlot').innerHTML = `<div class="view active" id="view-${currentView}"></div>`;
-  fn(document.getElementById('view-'+currentView));
+  try{
+    fn(document.getElementById('view-'+currentView));
+  }catch(err){
+    // never leave a blank screen on a rendering error - show what broke so it can
+    // actually be diagnosed and fixed, instead of just disappearing silently
+    console.error('Render error on view "'+currentView+'":', err);
+    const el = document.getElementById('view-'+currentView);
+    if(el){
+      el.innerHTML = `<div class="card" style="border:2px solid var(--red);">
+        <h3 style="color:var(--red);margin-top:0;">⚠️ שגיאה בטעינת המסך</h3>
+        <p>אירעה שגיאה בעת הצגת "${currentView}". נא לצלם את ההודעה הזו ולשלוח לתמיכה.</p>
+        <pre style="white-space:pre-wrap;background:#fff3f3;border:1px solid var(--red);border-radius:8px;padding:10px;font-size:12px;direction:ltr;text-align:left;">${String(err && err.stack || err)}</pre>
+        <button class="btn btn-blue" onclick="navigateTo('dashboard')" style="margin-top:10px;">🏠 חזרה לדשבורד</button>
+      </div>`;
+    }
+  }
 }
 
 /* ---------- gauge (machinist dial) ---------- */
@@ -1004,8 +1019,8 @@ function renderBarChart(entries, seriesDefs, opts){
   if(!entries.length){
     return `<div class="barchart-empty">אין תנועות להצגה בטווח שנבחר</div>`;
   }
-  const maxVal = Math.max(1, ...entries.flatMap(e=> seriesDefs.map(s=> Math.abs(e[s.key]||0))));
-  const legend = `<div class="chart-legend">${seriesDefs.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}</div>`;
+  const maxVal = Math.max(1, ...entries.map(e=> seriesDefs.map(s=> Math.abs(e[s.key]||0))).reduce((a,b)=>a.concat(b),[]));
+  const legend = `<div class="chart-legend">${seriesDefs.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}${entries.some(e=>(e.incomeDetail||[]).some(d=>String(d.label).includes('🟣')))?'<span><i style="background:#8b5cf6"></i>🟣 כולל חשבונית זיכוי (קו סגול בראש העמודה)</span>':''}</div>`;
   const esc = (s)=> String(s).replace(/&quot;/g,'&quot;').replace(/"/g,'&quot;');
   const cols = entries.map(e=>{
     const bars = seriesDefs.map(s=>{
@@ -1013,21 +1028,26 @@ function renderBarChart(entries, seriesDefs, opts){
       if(!v) return '';
       const h = Math.max(6, Math.round((Math.abs(v)/maxVal)*140));
       const detailArr = e[s.key+'Detail'];
+      // detect credit invoices from the existing detail labels (already marked with 🟣) so
+      // the bar itself shows a clear, always-visible indicator - not just on hover
+      const hasCredit = s.key==='income' && detailArr && detailArr.some(d=> String(d.label).includes('🟣'));
       let tooltip;
       if(detailArr && detailArr.length){
         tooltip = `${s.name} - ${e.label}\n` + detailArr.map(d=>`${d.label}: ${fmtILS(d.amount)}`).join('\n');
       } else {
         tooltip = `${s.name} - ${e.label}: ${fmtILS(v)}`;
       }
+      const creditBorder = hasCredit ? 'border-top:4px solid #8b5cf6;box-sizing:border-box;' : '';
+      const valPrefix = hasCredit ? '🟣 ' : '';
       const stackArr = e[s.key+'Stack'];
       if(stackArr && stackArr.length){
         const segs = stackArr.map(seg=>{
           const segH = Math.max(1, Math.round((seg.amount/v)*h));
           return `<div style="height:${segH}px;background:${expenseTypeColor(seg.type)};width:100%;"></div>`;
         }).join('');
-        return `<div class="barchart-bar" style="height:${h}px;background:transparent;overflow:hidden;display:flex;flex-direction:column-reverse;" title="${esc(tooltip)}">${segs}<span class="val" style="color:${s.color}">${fmtILS(v)}</span></div>`;
+        return `<div class="barchart-bar" style="height:${h}px;background:transparent;overflow:hidden;display:flex;flex-direction:column-reverse;${creditBorder}" title="${esc(tooltip)}">${segs}<span class="val" style="color:${s.color}">${valPrefix}${fmtILS(v)}</span></div>`;
       }
-      return `<div class="barchart-bar" style="height:${h}px;background:${s.color}" title="${esc(tooltip)}"><span class="val" style="color:${s.color}">${fmtILS(v)}</span></div>`;
+      return `<div class="barchart-bar" style="height:${h}px;background:${s.color};${creditBorder}" title="${esc(tooltip)}"><span class="val" style="color:${s.color}">${valPrefix}${fmtILS(v)}</span></div>`;
     }).join('');
     return `<div class="barchart-col"><div class="barchart-bars">${bars}</div><div class="barchart-date">${e.label||'-'}</div></div>`;
   }).join('');
@@ -1041,7 +1061,7 @@ function renderBarChart(entries, seriesDefs, opts){
 function renderDashboardView(el){
   const months = monthsAhead(4);
   const stats = months.map(mk=> monthStats(mk,'expected'));
-  const refMax = Math.max(1, ...stats.flatMap(s=>[s.incomeTotal, s.expenseTotal]));
+  const refMax = Math.max(1, ...stats.map(s=>[s.incomeTotal, s.expenseTotal]).reduce((a,b)=>a.concat(b),[]));
   const alerts = computeAlerts().slice(0,4);
 
   el.innerHTML = `
@@ -2274,7 +2294,7 @@ function viewDayDetail(iso, mk, mode){
 function renderForecastView(el){
   const months = monthsAhead(4);
   const stats = months.map(mk=> monthStats(mk,'expected'));
-  const refMax = Math.max(1, ...stats.flatMap(s=>[s.incomeTotal, s.expenseTotal]));
+  const refMax = Math.max(1, ...stats.map(s=>[s.incomeTotal, s.expenseTotal]).reduce((a,b)=>a.concat(b),[]));
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px;">
