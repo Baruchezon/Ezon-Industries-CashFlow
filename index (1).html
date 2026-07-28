@@ -1,0 +1,3162 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>מערכת ניהול תזרים מזומנים | איזון תעשיות ומתכת בע"מ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --graphite-900:#1c2024;
+  --graphite-800:#262b31;
+  --graphite-700:#333a42;
+  --steel-500:#4b6b83;
+  --steel-300:#7d9bb3;
+  --steel-100:#e3ecf2;
+  --brass:#c8963e;
+  --bg:#eef1f3;
+  --card:#ffffff;
+  --line:#dde3e8;
+  --ink:#1c2024;
+  --muted:#697178;
+  --green:#1f9d55;
+  --green-bg:#e7f7ee;
+  --red:#d64545;
+  --red-bg:#fceaea;
+  --orange:#e8a33d;
+  --orange-bg:#fdf3e2;
+  --blue:#2f6690;
+  --blue-bg:#e8f1f8;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(28,32,36,.06), 0 6px 16px rgba(28,32,36,.06);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Heebo',sans-serif;
+  background:
+    linear-gradient(180deg, rgba(28,32,36,.03), rgba(28,32,36,0) 200px),
+    repeating-linear-gradient(0deg, rgba(75,107,131,.035) 0px, rgba(75,107,131,.035) 1px, transparent 1px, transparent 24px),
+    repeating-linear-gradient(90deg, rgba(75,107,131,.035) 0px, rgba(75,107,131,.035) 1px, transparent 1px, transparent 24px),
+    var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+}
+h1,h2,h3,h4,.brandfont{font-family:'Rubik',sans-serif;}
+button{font-family:inherit;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:#c7cfd5;border-radius:8px;}
+
+/* ===== layout shell ===== */
+#app{display:flex;min-height:100vh;}
+#sidenav{
+  width:230px;flex:0 0 230px;background:var(--graphite-900);
+  color:#cfd6db;padding:18px 12px;position:sticky;top:0;height:100vh;overflow-y:auto;
+  border-left:3px solid var(--brass);
+  z-index:40;
+}
+#sidenav .brand{
+  display:flex;align-items:center;gap:10px;padding:6px 8px 18px 8px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:12px;
+}
+#sidenav .brand .gear{
+  width:34px;height:34px;border-radius:50%;background:conic-gradient(from 0deg, var(--brass), #8a6420, var(--brass));
+  display:flex;align-items:center;justify-content:center;flex:0 0 34px;
+  box-shadow:inset 0 0 0 3px var(--graphite-900), 0 0 0 1px rgba(255,255,255,.15);
+}
+#sidenav .brand .gear span{font-size:16px;}
+#sidenav .brand .txt{line-height:1.25;}
+#sidenav .brand .txt b{display:block;font-family:'Rubik';font-size:13.5px;color:#fff;}
+#sidenav .brand .txt small{color:#9aa5ac;font-size:11px;}
+.navlink{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:3px;
+  cursor:pointer;font-size:14px;color:#c7ced3;transition:.15s;user-select:none;
+}
+.navlink .ic{width:20px;text-align:center;font-size:15px;}
+.navlink:hover{background:rgba(255,255,255,.06);color:#fff;}
+.navlink.active{background:var(--brass);color:#20242a;font-weight:600;}
+#navToggle{display:none;}
+
+#main{flex:1;min-width:0;padding:22px 26px 60px;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px;
+  background:var(--card);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);
+  border-top:4px solid var(--brass);
+}
+.topbar h1{margin:0;font-size:19px;}
+.topbar .sub{color:var(--muted);font-size:12.5px;margin-top:2px;}
+.topbar .actions{display:flex;gap:8px;align-items:center;}
+.iconbtn{
+  border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 13px;cursor:pointer;
+  font-size:13px;display:flex;align-items:center;gap:6px;color:var(--graphite-800);transition:.15s;
+}
+.iconbtn:hover{border-color:var(--steel-500);color:var(--steel-500);}
+.iconbtn.mobileonly{display:none;}
+
+.view{display:none;}
+.view.active{display:block;animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+/* ===== cards / grids ===== */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:1200px){.grid4{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:640px){.grid4{grid-template-columns:1fr;}.grid2{grid-template-columns:1fr;}}
+
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;}
+.month-card{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;cursor:pointer;
+  border-top:5px solid var(--steel-300);transition:.15s;position:relative;overflow:hidden;
+}
+.month-card:hover{transform:translateY(-2px);box-shadow:0 4px 6px rgba(28,32,36,.08),0 14px 28px rgba(28,32,36,.1);}
+.month-card.pos{border-top-color:var(--green);}
+.month-card.neg{border-top-color:var(--red);}
+.month-card.zero{border-top-color:var(--steel-300);}
+.month-card .mhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.month-card .mhead .mname{font-family:'Rubik';font-weight:700;font-size:15px;}
+.month-card .mhead .tag{font-size:10.5px;padding:2px 8px;border-radius:20px;font-weight:600;}
+.tag.pos{background:var(--green-bg);color:var(--green);}
+.tag.neg{background:var(--red-bg);color:var(--red);}
+.tag.zero{background:var(--steel-100);color:var(--steel-500);}
+.gauges-row{display:flex;gap:10px;margin:10px 0;}
+.balance-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;margin-top:6px;}
+.balance-row b{color:var(--ink);}
+.mini-cut{display:flex;justify-content:space-between;background:var(--steel-100);border-radius:8px;padding:7px 10px;font-size:11.5px;margin-top:8px;}
+.mini-cut b{font-family:'Rubik';}
+.counts{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-top:8px;}
+
+/* gauge (machinist dial) */
+.gauge-wrap{flex:1;text-align:center;}
+.gauge-label{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.03em;}
+.gauge-amount{font-family:'Rubik';font-weight:700;font-size:13px;margin-top:2px;}
+
+/* buttons */
+.btn{
+  border:none;border-radius:10px;padding:11px 16px;font-size:13.5px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:.15s;
+}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#187f45;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:#b93636;}
+.btn-blue{background:var(--blue);color:#fff;}
+.btn-blue:hover{background:#245676;}
+.btn-orange{background:var(--orange);color:#fff;}
+.btn-ghost{background:#fff;color:var(--graphite-800);border:1px solid var(--line);}
+.btn-ghost:hover{border-color:var(--steel-500);}
+.btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.action-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px;}
+@media(max-width:900px){.action-grid{grid-template-columns:repeat(2,1fr);}}
+.action-tile{
+  border-radius:var(--radius);padding:16px;color:#fff;cursor:pointer;text-align:center;font-weight:600;font-size:13.5px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;transition:.15s;box-shadow:var(--shadow);
+}
+.action-tile:hover{transform:translateY(-2px);}
+.action-tile .ic{font-size:22px;}
+
+/* forms */
+label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:5px;font-weight:600;}
+input,select,textarea{
+  width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 11px;font-size:14px;font-family:inherit;
+  background:#fcfdfd;color:var(--ink);
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--steel-300);border-color:var(--steel-500);}
+.field{margin-bottom:14px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:700px){.form-grid{grid-template-columns:1fr;}}
+.section-title{font-family:'Rubik';font-weight:700;font-size:15px;margin:22px 0 12px;padding-top:14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;}
+.section-title:first-child{border-top:none;padding-top:0;margin-top:0;}
+.pill-toggle{display:flex;gap:8px;flex-wrap:wrap;}
+.pill{border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;}
+.pill.active{background:var(--steel-500);color:#fff;border-color:var(--steel-500);}
+
+/* tables */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--line);}
+table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;min-width:820px;}
+th{background:var(--graphite-800);color:#fff;text-align:right;padding:11px 12px;font-weight:600;font-size:12.5px;white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tbody tr:nth-child(even){background:#f7f9fb;}
+tbody tr:hover{background:#eef4fa;}
+td.col-income{color:var(--green);font-weight:700;}
+td.col-expense{color:var(--red);font-weight:700;}
+th.col-income{background:#1f7a4d;}
+th.col-expense{background:#b7322a;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#f7f9fa;}
+.status-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.status-expected{background:var(--blue-bg);color:var(--blue);}
+.status-paid{background:var(--green-bg);color:var(--green);}
+.status-partial{background:var(--orange-bg);color:var(--orange);}
+.status-late{background:var(--red-bg);color:var(--red);}
+.status-cancelled{background:#eee;color:#888;}
+.status-postponed{background:#f0e8fc;color:#7a49b8;}
+.rowbtns{display:flex;gap:4px;}
+.iconsm{border:1px solid var(--line);background:#fff;border-radius:7px;width:28px;height:28px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.iconsm:hover{border-color:var(--steel-500);}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;justify-content:space-between;}
+.toolbar .filters{display:flex;gap:8px;flex-wrap:wrap;flex:1;}
+.toolbar input[type=text],.toolbar select{width:auto;min-width:130px;}
+.search-box{position:relative;flex:1;min-width:200px;}
+.search-box input{padding-right:34px;}
+.search-box .ic{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);}
+
+.months-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;}
+.month-chip{
+  flex:0 0 auto;padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12.5px;font-weight:600;
+}
+.month-chip.active{background:var(--graphite-900);color:#fff;border-color:var(--graphite-900);}
+.year-switch{display:flex;align-items:center;gap:10px;font-family:'Rubik';font-weight:700;font-size:15px;}
+.year-switch button{border:1px solid var(--line);background:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;}
+
+/* daily cashflow board */
+.day-row{display:grid;grid-template-columns:110px 1fr 1fr 1fr 1fr;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);align-items:center;font-size:13px;cursor:pointer;}
+.day-row:hover{background:#f7f9fa;}
+.day-row.neg{background:var(--red-bg);}
+.day-row.warn{background:var(--orange-bg);}
+.day-row .lbl{font-size:10px;color:var(--muted);display:block;}
+@media(max-width:800px){.day-row{grid-template-columns:1fr 1fr;grid-auto-rows:auto;}}
+
+/* bar chart */
+.chart-card{margin-bottom:16px;}
+.chart-legend{display:flex;gap:16px;margin-bottom:10px;font-size:12.5px;}
+.chart-legend span{display:flex;align-items:center;gap:6px;}
+.chart-legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+.barchart-scroll{overflow-x:auto;padding-bottom:6px;}
+.barchart-row{display:flex;align-items:flex-end;gap:18px;min-height:210px;padding:34px 6px 0;}
+.barchart-col{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;min-width:60px;}
+.barchart-bars{display:flex;align-items:flex-end;gap:4px;height:140px;}
+.barchart-bar{width:16px;border-radius:5px 5px 0 0;position:relative;display:flex;align-items:flex-start;justify-content:center;transition:.2s;cursor:help;}
+.barchart-bar .val{position:absolute;top:-22px;font-size:10.5px;font-weight:700;white-space:nowrap;}
+.barchart-date{font-size:11px;color:var(--ink);margin-top:10px;font-weight:700;white-space:nowrap;background:var(--steel-100);padding:3px 9px;border-radius:20px;}
+.barchart-empty{text-align:center;padding:30px;color:var(--muted);}
+
+/* alerts */
+.alert{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border-radius:12px;margin-bottom:10px;font-size:13.5px;}
+.alert .ic{font-size:17px;}
+.alert.sev-red{background:var(--red-bg);color:#8f2b2b;}
+.alert.sev-orange{background:var(--orange-bg);color:#7a5518;}
+.alert.sev-blue{background:var(--blue-bg);color:#1d4666;}
+.alert.sev-green{background:var(--green-bg);color:#116b38;}
+.alert .txt b{display:block;font-size:13.5px;}
+.alert .txt span{color:inherit;opacity:.85;font-size:12.5px;}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(20,23,26,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal{background:#fff;border-radius:16px;max-width:640px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;}
+.modal-head h3{margin:0;font-size:16px;}
+.modal-body{padding:20px 22px;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:#fff;}
+.closeX{border:none;background:none;font-size:20px;cursor:pointer;color:var(--muted);}
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--graphite-900);color:#fff;padding:13px 22px;
+  border-radius:11px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:200;display:flex;align-items:center;gap:8px;
+  animation:toastin .2s ease;
+}
+.toast.err{background:var(--red);}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,10px);}to{opacity:1;transform:translate(-50%,0);}}
+
+.badge-count{background:var(--red);color:#fff;font-size:10px;border-radius:10px;padding:1px 6px;margin-right:auto;}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+.empty-state .ic{font-size:34px;margin-bottom:10px;}
+
+@media(max-width:900px){
+  #sidenav{position:fixed;right:0;top:0;transform:translateX(100%);transition:.25s;box-shadow:-6px 0 24px rgba(0,0,0,.3);}
+  #sidenav.open{transform:translateX(0);}
+  #main{padding:14px;}
+  .iconbtn.mobileonly{display:flex;}
+  table{min-width:680px;}
+}
+#printReportHeader{ display:none; }
+.report-summary-box{ background:linear-gradient(135deg,#0e3a5f,#134a72); color:#fff; border-radius:12px; padding:16px 20px; margin-bottom:16px; }
+.report-summary-box .rs-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
+.report-summary-box .rs-item .rs-label{ font-size:11.5px; opacity:.8; }
+.report-summary-box .rs-item .rs-value{ font-family:Rubik; font-weight:700; font-size:18px; margin-top:2px; }
+@media print{
+  #sidenav, #topbarSlot, .toolbar, .no-print, #modal-root, #toast-root { display:none !important; }
+  #main{ padding:0 !important; }
+  body{ background:#fff !important; }
+  .card{ box-shadow:none !important; border:1px solid #ddd !important; padding:0 !important; }
+  #printReportHeader{ display:block !important; margin-bottom:16px; border-bottom:3px solid #134a72; padding-bottom:10px; }
+  #printReportHeader .prh-company{ font-size:18px; font-weight:800; color:#0e3a5f; }
+  #printReportHeader .prh-title{ font-size:15px; margin-top:4px; }
+  #printReportHeader .prh-meta{ font-size:11px; color:#666; margin-top:4px; }
+  .report-summary-box{ background:#eef2f7 !important; color:#0e3a5f !important; border:1px solid #ccc; }
+  .table-wrap{ overflow:visible !important; border:none !important; }
+  table{ font-size:11.5px !important; width:100% !important; min-width:0 !important; table-layout:auto !important; border-collapse:collapse !important; }
+  th, td{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; padding:6px 8px !important; border:1px solid #ccc !important; }
+  th{ background:#0e3a5f !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  tr{ page-break-inside:avoid; }
+  tbody tr:nth-child(even){ background:#f7f9fb !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidenav"></div>
+  <div id="main">
+    <div id="topbarSlot"></div>
+    <div id="viewsSlot"></div>
+  </div>
+</div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<div id="chartTooltip" style="display:none;position:fixed;z-index:9999;background:#1a2b3d;color:#fff;padding:9px 12px;border-radius:8px;font-size:12.5px;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.3);max-width:260px;pointer-events:none;"></div>
+<script>
+/* =========================================================================
+   מערכת ניהול תזרים מזומנים - איזון תעשיות ומתכת בע"מ
+   שכבת נתונים + כלים כלליים
+   ========================================================================= */
+const STORAGE_KEY = 'izun_cashflow_v1';
+const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const HE_DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const EXPENSE_TYPES = ['שכירות','ארנונה',"צ'קים בחוץ",'כרטיסי אשראי','תשלום לספקים','הוראת קבע','שכר עובדים','מיסים','הלוואות','הוצאות רכב','אחר'];
+const EXPENSE_TYPE_COLORS = {
+  'שכירות':'#8B5CF6',
+  'ארנונה':'#F59E0B',
+  "צ'קים בחוץ":'#0EA5E9',
+  'כרטיסי אשראי':'#EC4899',
+  'תשלום לספקים':'#14B8A6',
+  'הוראת קבע':'#6366F1',
+  'שכר עובדים':'#84CC16',
+  'מיסים':'#DC2626',
+  'הלוואות':'#F97316',
+  'הוצאות רכב':'#64748B',
+  'אחר':'#9CA3AF'
+};
+function expenseTypeColor(type){ return EXPENSE_TYPE_COLORS[type] || '#9CA3AF'; }
+function expenseTypeBadge(type){
+  const c = expenseTypeColor(type);
+  return `<span style="background:${c}20;color:${c};border:1px solid ${c}66;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;">${type}</span>`;
+}
+const PAYMENT_METHODS = ['העברה בנקאית','מזומן',"צ'ק",'כרטיס אשראי','הוראת קבע','אחר'];
+const STATUSES = ['צפוי','שולם','שולם חלקית','באיחור','בוטל','נדחה'];
+const STATUS_CLASS = {'צפוי':'status-expected','שולם':'status-paid','שולם חלקית':'status-partial','באיחור':'status-late','בוטל':'status-cancelled','נדחה':'status-postponed'};
+const FREQ_OPTIONS = [{v:1,l:'חודשי'},{v:2,l:'דו חודשי'},{v:3,l:'רבעוני'},{v:6,l:'חצי שנתי'},{v:12,l:'שנתי'}];
+
+function uid(prefix){ return (prefix||'id')+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ---------- cloud sync (Supabase) ---------- */
+const SUPABASE_URL = 'https://qwpgxoxgxuyvjfrfshea.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_KfkR2pT19SrhJLZSROa4Bw_JqEKIepS';
+// Global safety net: catch ANY uncaught error or rejected promise anywhere on the
+// page (not just inside view rendering) and show a visible banner instead of a
+// silent blank/broken screen - critical for diagnosing device-specific issues.
+window.addEventListener('error', function(e){
+  console.error('Global error:', e.error || e.message);
+  showGlobalErrorBanner(e.error || e.message);
+});
+window.addEventListener('unhandledrejection', function(e){
+  console.error('Unhandled promise rejection:', e.reason);
+  showGlobalErrorBanner(e.reason);
+});
+function showGlobalErrorBanner(err){
+  if(document.getElementById('globalErrorBanner')) return; // don't stack multiple banners
+  const banner = document.createElement('div');
+  banner.id = 'globalErrorBanner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#b7322a;color:#fff;padding:12px 16px;z-index:99999;font-size:13px;text-align:center;direction:rtl;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  const msg = String((err && err.message) || err || 'שגיאה לא ידועה').slice(0,220);
+  banner.innerHTML = `⚠️ אירעה שגיאה: ${msg} <button onclick="location.reload()" style="margin-right:10px;background:#fff;color:#b7322a;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-weight:700;">🔄 רענון הדף</button> <button onclick="this.parentElement.remove()" style="margin-right:6px;background:transparent;color:#fff;border:1px solid #fff;border-radius:6px;padding:5px 10px;cursor:pointer;">✕</button>`;
+  document.body.appendChild(banner);
+}
+
+let supabaseClient = null;
+let cloudStatus = 'connecting'; // 'connecting' | 'online' | 'offline'
+try{
+  if(window.supabase && window.supabase.createClient){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+}catch(e){ console.error('supabase init error', e); }
+
+function defaultData(){
+  return {
+    meta:{ company:"איזון תעשיות ומתכת בע\"מ", createdAt: nowISO() },
+    currentUser: 'ברוך איזון',
+    users:[
+      {id:uid('u'), name:'ברוך איזון', role:'מנהל מערכת'},
+      {id:uid('u'), name:'משתמש רגיל', role:'משתמש רגיל'}
+    ],
+    customers:[],
+    suppliers:[],
+    incomeInvoices:[],   // {id, customer, invoiceNumber, invoiceDate, totalAmount, numPayments, splitType, notes, createdBy, createdAt, updatedAt, payments:[]}
+    expenses:[],         // {id, type, supplier, description, totalAmount, numPayments, firstDueDate, frequency, paymentMethod, reference, notes, isRecurring, endDate, extra:{}, createdBy, createdAt, updatedAt, payments:[]}
+    recurringRules:[],   // {id, expenseId, frequency, endDate or null, active}
+    openingBalances:[{id:uid('ob'), amount:0, date: todayMonthKey()+'-01', accountName:'חשבון ראשי', notes:''}],
+    monthlyBankBalances:[], // per-month manual bank-balance overrides: {id, month:'YYYY-MM', amount, notes} - always represents the balance on the 1st of that month
+    warningThreshold: 10000,
+    expenseCategories: EXPENSE_TYPES.slice(),
+    paymentMethods: PAYMENT_METHODS.slice(),
+    auditLog:[],         // {id, ts, user, entity, entityId, action, field, oldVal, newVal}
+    recycleBin:[],       // {id, entity, record, deletedAt, deletedBy}
+    dismissedAlerts:[]
+  };
+}
+
+let DB = null;
+
+// Wraps a promise with a hard timeout - if the underlying call (e.g. a Supabase
+// request over a slow/unstable mobile connection) never resolves OR rejects,
+// this guarantees we still move on instead of leaving the app hanging forever
+// on a blank screen with nothing rendered.
+function withTimeout(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=> setTimeout(()=> reject(new Error('Timeout ('+ms+'ms) waiting for: '+(label||'network call'))), ms))
+  ]);
+}
+async function loadDB(){
+  let loadedFromCloud = false;
+  try{
+    if(supabaseClient){
+      const { data, error } = await withTimeout(
+        supabaseClient.from('app_state').select('data,updated_at').eq('id','main').maybeSingle(),
+        8000, 'loadDB cloud fetch'
+      );
+      if(!error && data && data.data){
+        DB = data.data;
+        loadedFromCloud = true;
+        cloudStatus = 'online';
+      } else if(!error && !data){
+        // no cloud row yet - this is the very first run for this project
+        cloudStatus = 'online';
+      } else {
+        cloudStatus = 'offline';
+      }
+    } else {
+      cloudStatus = 'offline';
+    }
+  }catch(e){
+    console.error('cloud load error', e);
+    cloudStatus = 'offline';
+  }
+
+  if(!loadedFromCloud){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ DB = JSON.parse(raw); }
+      else{ DB = defaultData(); }
+    }catch(e){
+      console.error('local load error', e);
+      DB = defaultData();
+    }
+  }
+
+  // migration safety - ensure new fields exist
+  const d = defaultData();
+  Object.keys(d).forEach(k=>{ if(!(k in DB)) DB[k]=d[k]; });
+  // one-time spelling fix: the surname is איזון, not עזון (matches the company name)
+  if(DB.currentUser === 'ברוך עזון') DB.currentUser = 'ברוך איזון';
+  if(Array.isArray(DB.users)){
+    DB.users.forEach(u=>{ if(u.name === 'ברוך עזון') u.name = 'ברוך איזון'; });
+  }
+
+  window.DB = DB; // exposed for console debugging
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }catch(e){} // keep local cache fresh too
+  invalidateCashflowCaches();
+  return DB;
+}
+
+function saveDB(){
+  invalidateCashflowCaches();
+  // 1) always save locally first - instant, synchronous, never blocked by network
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+  }catch(e){
+    console.error('local save error', e);
+    showToast('שגיאה בשמירת הנתונים באופן מקומי', true);
+    return false;
+  }
+  // 2) push to the cloud in the background so other computers can see the change too
+  if(supabaseClient){
+    supabaseClient.from('app_state').upsert({
+      id: 'main', data: DB, updated_at: nowISO(), updated_by: DB.currentUser
+    }).then(({error})=>{
+      if(error){
+        cloudStatus = 'offline';
+        console.error('cloud save error', error);
+      } else {
+        cloudStatus = 'online';
+      }
+      updateCloudStatusUI();
+    }).catch(e=>{
+      cloudStatus = 'offline';
+      console.error('cloud save exception', e);
+      updateCloudStatusUI();
+    });
+  }
+  return true;
+}
+
+function logAudit(entity, entityId, action, field, oldVal, newVal){
+  DB.auditLog.unshift({
+    id: uid('log'), ts: nowISO(), user: DB.currentUser,
+    entity, entityId, action, field: field||null, oldVal: oldVal===undefined?null:oldVal, newVal: newVal===undefined?null:newVal
+  });
+  if(DB.auditLog.length>2000) DB.auditLog.length = 2000;
+}
+
+/* ---------- date helpers ---------- */
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function nowISO(){ return new Date().toISOString(); }
+function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function toISO(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function addMonths(iso, n){ const d=parseISO(iso); const day=d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+n); const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(); d.setDate(Math.min(day,last)); return toISO(d); }
+function fmtDateHe(iso){ if(!iso) return '-'; const d=parseISO(iso); return `${String(d.getDate()).padStart(2,'0')} ב${HE_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
+function fmtDateShort(iso){ if(!iso) return '-'; const d=parseISO(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
+function monthKey(iso){ return iso.slice(0,7); } // YYYY-MM
+function monthKeyOf(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
+function monthLabel(key){ const [y,m]=key.split('-').map(Number); return `${HE_MONTHS[m-1]} ${y}`; }
+function todayMonthKey(){ return monthKey(todayISO()); }
+function creditCardDefaultDate(txnDateISO){
+  // 15th of the month AFTER the transaction month
+  const d = parseISO(txnDateISO);
+  const targetMonth = new Date(d.getFullYear(), d.getMonth()+1, 15);
+  return toISO(targetMonth);
+}
+function monthsAhead(n, startIso){
+  // pure integer year/month arithmetic - deliberately avoids any string round-trip so it can never collapse to a single repeated month
+  const base = startIso ? parseISO(startIso) : new Date();
+  const y = base.getFullYear(), m = base.getMonth();
+  const arr = [];
+  for(let i=0;i<n;i++){
+    const total = m+i;
+    const yy = y + Math.floor(total/12);
+    const mm = ((total%12)+12)%12;
+    arr.push(yy+'-'+String(mm+1).padStart(2,'0'));
+  }
+  return arr;
+}
+
+/* ---------- currency ---------- */
+function fmtILS(n){
+  n = Number(n)||0;
+  const neg = n<0; n=Math.abs(n);
+  const s = n.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:2});
+  return (neg?'-':'')+s+' ש"ח';
+}
+function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
+
+/* ---------- live-formatted money inputs (comma separators + ש"ח suffix while typing) ---------- */
+function parseMoneyString(str){
+  if(str===undefined||str===null) return 0;
+  const cleaned = String(str).replace(/[^\d.\-]/g,'');
+  return Number(cleaned)||0;
+}
+function formatMoneyInputEl(el){
+  const caretAtEnd = true; // simple, predictable behavior for a right-to-left currency field
+  // keep a leading minus (for credit invoices), digits, and a single decimal point (agorot)
+  const isNeg = /^\s*-/.test(el.value);
+  let raw = el.value.replace(/[^\d.]/g,'');
+  const firstDot = raw.indexOf('.');
+  if(firstDot !== -1){
+    // collapse any extra dots the user typed, and cap at 2 decimal digits
+    raw = raw.slice(0, firstDot+1) + raw.slice(firstDot+1).replace(/\./g,'').slice(0,2);
+  }
+  raw = raw.replace(/^0+(?=\d)/,'');
+  if(raw===''||raw==='.'){ el.value = isNeg ? '-' : ''; return; }
+  const dotIdx = raw.indexOf('.');
+  const intPart = dotIdx===-1 ? raw : raw.slice(0,dotIdx);
+  const decPart = dotIdx===-1 ? '' : raw.slice(dotIdx); // includes the dot itself, e.g. ".5"
+  const intNum = Number(intPart)||0;
+  el.value = (isNeg?'-':'') + intNum.toLocaleString('he-IL') + decPart + ' ש"ח';
+  if(caretAtEnd) el.setSelectionRange && el.setSelectionRange(el.value.length-4, el.value.length-4);
+}
+function moneyInputAttrs(){
+  return `type="text" inputmode="numeric" class="money-input" oninput="formatMoneyInputEl(this)"`;
+}
+function fmtMoneyInputValue(n){
+  n = Number(n)||0;
+  if(!n) return '';
+  return n.toLocaleString('he-IL') + ' ש&quot;ח';
+}
+
+/* ---------- toast ---------- */
+function showToast(msg, isErr){
+  const root = document.getElementById('toast-root');
+  const t = document.createElement('div');
+  t.className = 'toast'+(isErr?' err':'');
+  t.innerHTML = `<span>${isErr?'⚠️':'✅'}</span><span>${msg}</span>`;
+  root.innerHTML=''; root.appendChild(t);
+  setTimeout(()=>{ t.remove(); }, 2600);
+}
+
+/* ---------- confirm modal ---------- */
+function confirmDialog(message, onYes){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-bg" id="confirmBg">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-head"><h3>⚠️ אישור פעולה</h3><button class="closeX" onclick="closeModal()">✕</button></div>
+        <div class="modal-body"><p style="margin:0;font-size:14px;line-height:1.6;">${message}</p></div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+          <button class="btn btn-red" id="confirmYesBtn">כן, המשך</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('confirmYesBtn').onclick = ()=>{ closeModal(); onYes(); };
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+/* =========================================================================
+   מנוע חישובים: פריסת תשלומים, הוצאות חוזרות, צבירת תזרים
+   ========================================================================= */
+
+function buildEqualSplit(totalAmount, numPayments, firstDate, frequencyMonths){
+  frequencyMonths = frequencyMonths || 1;
+  const per = Math.trunc((totalAmount/numPayments)*100)/100;
+  let sum = 0;
+  const rows = [];
+  for(let i=0;i<numPayments;i++){
+    let amt = per;
+    if(i === numPayments-1){ amt = round2(totalAmount - sum); }
+    else { sum = round2(sum+per); }
+    rows.push({
+      paymentNumber: i+1,
+      date: addMonths(firstDate, i*frequencyMonths),
+      amount: amt,
+      status: 'צפוי',
+      paidAmount: 0
+    });
+  }
+  return rows;
+}
+
+function buildManualSplit(rows){
+  // rows: [{date, amount}] provided by user; just normalize
+  return rows.map((r,i)=>({ paymentNumber:i+1, date:r.date, amount: round2(Number(r.amount)||0), status:'צפוי', paidAmount:0 }));
+}
+
+/* ---------- recurring expense future generation ---------- */
+function generateRecurringPayments(baseAmount, startDate, frequencyMonths, endDate, monthsHorizon){
+  // generates payment rows from startDate forward, monthly*frequency, until endDate or horizon
+  const rows = [];
+  let cursor = startDate;
+  let i=0;
+  const horizonDate = addMonths(todayISO(), monthsHorizon||24);
+  while(true){
+    if(endDate && cursor > endDate) break;
+    if(cursor > horizonDate) break;
+    rows.push({ paymentNumber:i+1, date: cursor, amount: baseAmount, status:'צפוי', paidAmount:0 });
+    i++;
+    cursor = addMonths(startDate, i*frequencyMonths);
+    if(i>500) break; // safety
+  }
+  return rows;
+}
+
+const DEFAULT_CC_AMOUNT = 6000;
+function ensureDefaultCreditCardExpense(){
+  let ex = DB.expenses.find(e=> e.extra && e.extra.isDefaultCreditCard);
+  const horizonMonths = 6;
+  if(!ex){
+    const firstDate = creditCardDefaultDate(todayISO());
+    const payments = generateRecurringPayments(DEFAULT_CC_AMOUNT, firstDate, 1, null, horizonMonths).map(p=>({...p, id:uid('epay')}));
+    ex = {
+      id: uid('exp'), type:'כרטיסי אשראי', supplier:'הוצאת אשראי - ברירת מחדל חודשית',
+      description:'הוצאת כרטיס אשראי שנוצרה אוטומטית מדי חודש (ניתן לעריכה)', totalAmount: DEFAULT_CC_AMOUNT,
+      numPayments: payments.length, frequency:1, paymentMethod:'כרטיס אשראי', reference:'', notes:'',
+      isRecurring:true, endDate:null, extra:{isDefaultCreditCard:true, ccCompany:'ברירת מחדל', ccLast4:''},
+      payments, createdBy: DB.currentUser, createdAt: nowISO(), updatedAt: nowISO()
+    };
+    DB.expenses.push(ex);
+    logAudit('expense', ex.id, 'auto-create', null, null, 'default-credit-card');
+    saveDB();
+  } else {
+    const lastDate = ex.payments.length? ex.payments.map(p=>p.date).sort().slice(-1)[0] : creditCardDefaultDate(todayISO());
+    const needThrough = addMonths(todayISO(), horizonMonths);
+    if(lastDate < needThrough){
+      let cursor = addMonths(lastDate, 1);
+      let n = ex.payments.length;
+      while(cursor <= needThrough){
+        ex.payments.push({ id: uid('epay'), paymentNumber: ++n, date: cursor, amount: DEFAULT_CC_AMOUNT, status:'צפוי', paidAmount:0 });
+        cursor = addMonths(cursor, 1);
+      }
+      ex.numPayments = ex.payments.length;
+      ex.updatedAt = nowISO();
+      saveDB();
+    }
+  }
+}
+
+/* ---------- lookups ---------- */
+// Memoization: these get called MANY times per render (once per month in any
+// cumulative-balance walk, once per dashboard card, etc.) and recomputing the
+// full flattened payment lists + month stats from scratch every single call
+// gets slower as the dataset and time-since-last-anchor grow - this can turn
+// into a real performance problem on weaker mobile CPUs. Cache invalidates on
+// any data load/save.
+let _paymentsCache = null;
+let _monthStatsCache = {};
+function invalidateCashflowCaches(){ _paymentsCache = null; _monthStatsCache = {}; }
+function allIncomePayments(){
+  if(_paymentsCache && _paymentsCache.income) return _paymentsCache.income;
+  const out=[];
+  DB.incomeInvoices.forEach(inv=>{
+    inv.payments.forEach(p=> out.push({...p, invoiceId:inv.id, customer:inv.customer, invoiceNumber:inv.invoiceNumber, notes:inv.notes, isCredit:!!inv.isCredit}));
+  });
+  _paymentsCache = _paymentsCache || {};
+  _paymentsCache.income = out;
+  return out;
+}
+function allExpensePayments(){
+  if(_paymentsCache && _paymentsCache.expense) return _paymentsCache.expense;
+  const out=[];
+  DB.expenses.forEach(ex=>{
+    ex.payments.forEach(p=> out.push({...p, expenseId:ex.id, type:ex.type, supplier:ex.supplier, description:ex.description, paymentMethod:ex.paymentMethod, reference:ex.reference}));
+  });
+  _paymentsCache = _paymentsCache || {};
+  _paymentsCache.expense = out;
+  return out;
+}
+function groupExpensesByType(items){
+  const byType = {};
+  items.forEach(p=>{ byType[p.type] = (byType[p.type]||0) + p.amount; });
+  return Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([type,amount])=>({type, amount}));
+}
+
+function getOpeningBalance(){
+  if(!DB.openingBalances.length) return {amount:0,date: todayMonthKey()+'-01'};
+  return DB.openingBalances[DB.openingBalances.length-1];
+}
+function getMonthlyBankBalanceOverride(monthKeyStr){
+  const list = (DB.monthlyBankBalances||[]).filter(o=>o.month===monthKeyStr);
+  return list.length ? list[list.length-1] : null;
+}
+// finds the most relevant known starting balance at or before a given month -
+// prefers a manual monthly bank-balance override (a real bank statement figure)
+// over the single global opening balance, since it's more accurate/recent
+function findBalanceAnchor(monthKeyStr){
+  const overrides = (DB.monthlyBankBalances||[]).filter(o=>o.month<=monthKeyStr).sort((a,b)=> a.month<b.month?1:(a.month>b.month?-1:0));
+  if(overrides.length) return {month:overrides[0].month, amount:Number(overrides[0].amount)||0, isOverride:true};
+  const ob = getOpeningBalance();
+  return {month:monthKey(ob.date), amount:Number(ob.amount)||0, isOverride:false};
+}
+
+/* ---------- monthly aggregation ---------- */
+function monthStats(monthKeyStr, mode){
+  // mode: 'expected' (default) uses all payments by date; 'actual' uses only paid/partial with paidAmount
+  mode = mode || 'expected';
+  const cacheKey = monthKeyStr+'|'+mode;
+  if(_monthStatsCache[cacheKey]) return _monthStatsCache[cacheKey];
+  const inc = allIncomePayments().filter(p=> monthKey(p.date)===monthKeyStr && p.status!=='בוטל');
+  const exp = allExpensePayments().filter(p=> monthKey(p.date)===monthKeyStr && p.status!=='בוטל');
+
+  function sumFor(list, mode){
+    if(mode==='actual'){
+      return list.reduce((s,p)=> s + (p.status==='שולם' ? p.amount : (p.status==='שולם חלקית' ? (p.paidAmount||0) : 0)), 0);
+    }
+    return list.reduce((s,p)=> s+p.amount, 0);
+  }
+  const incomeTotal = sumFor(inc, mode);
+  const expenseTotal = sumFor(exp, mode);
+
+  const inc15 = inc.filter(p=> parseISO(p.date).getDate() <= 15);
+  const exp15 = exp.filter(p=> parseISO(p.date).getDate() <= 15);
+  const income15 = sumFor(inc15, mode);
+  const expense15 = sumFor(exp15, mode);
+
+  const lateIncome = inc.filter(p=>p.status==='באיחור').length;
+  const lateExpense = exp.filter(p=>p.status==='באיחור').length;
+
+  const result = {
+    monthKeyStr, incomeTotal, expenseTotal, balance: round2(incomeTotal-expenseTotal),
+    income15, expense15, balance15: round2(income15-expense15),
+    countIncome: inc.length, countExpense: exp.length,
+    lateIncome, lateExpense,
+    incomePayments: inc, expensePayments: exp
+  };
+  _monthStatsCache[cacheKey] = result;
+  return result;
+}
+
+// cumulative balance up to & including a given month key, from the nearest known
+// anchor forward (either a manual monthly bank-balance override, or the global
+// opening balance if no override applies yet)
+function cumulativeBalanceThroughMonth(monthKeyStr, mode){
+  const anchor = findBalanceAnchor(monthKeyStr);
+  let bal = anchor.amount;
+  let cursor = anchor.month;
+  const seen = new Set();
+  while(true){
+    if(cursor === monthKeyStr){ bal += monthStats(cursor, mode).balance; break; }
+    const stats = monthStats(cursor, mode);
+    bal += stats.balance;
+    seen.add(cursor);
+    cursor = addMonths(cursor+'-01',1).slice(0,7);
+    if(seen.size>600) break;
+  }
+  return round2(bal);
+}
+
+/* ---------- daily cashflow for a specific month ---------- */
+function dailyCashflow(monthKeyStr, mode){
+  mode = mode||'expected';
+  const [y,m] = monthKeyStr.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const bankOverride = getMonthlyBankBalanceOverride(monthKeyStr);
+  const prevCumulative = bankOverride ? Number(bankOverride.amount)||0 : cumulativeBalanceThroughMonth(addMonths(monthKeyStr+'-01',-1).slice(0,7), mode);
+  let running = prevCumulative;
+  const inc = allIncomePayments().filter(p=> monthKey(p.date)===monthKeyStr && p.status!=='בוטל');
+  const exp = allExpensePayments().filter(p=> monthKey(p.date)===monthKeyStr && p.status!=='בוטל');
+  const days = [];
+  for(let day=1; day<=daysInMonth; day++){
+    const iso = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dIncome = inc.filter(p=>p.date===iso);
+    const dExpense = exp.filter(p=>p.date===iso);
+    const incSum = mode==='actual'? dIncome.reduce((s,p)=>s+(p.status==='שולם'?p.amount:(p.paidAmount||0)),0) : dIncome.reduce((s,p)=>s+p.amount,0);
+    const expSum = mode==='actual'? dExpense.reduce((s,p)=>s+(p.status==='שולם'?p.amount:(p.paidAmount||0)),0) : dExpense.reduce((s,p)=>s+p.amount,0);
+    const openBal = running;
+    const net = round2(incSum-expSum);
+    running = round2(running+net);
+    days.push({ day, iso, openBal, incSum, expSum, net, closeBal: running, incomeItems:dIncome, expenseItems:dExpense });
+  }
+  days.hasBankOverride = !!bankOverride;
+  days.bankOverrideAmount = bankOverride ? Number(bankOverride.amount)||0 : null;
+  days.bankOverrideNotes = bankOverride ? (bankOverride.notes||'') : '';
+  return days;
+}
+
+/* ---------- alerts ---------- */
+function computeAlerts(){
+  const alerts = [];
+  const today = todayISO();
+  const in7 = addMonths(today,0); // placeholder
+  const sevenDaysOut = (()=>{ const d=parseISO(today); d.setDate(d.getDate()+7); return toISO(d); })();
+
+  // overdue income
+  const incPays = allIncomePayments();
+  const overdueInc = incPays.filter(p=> p.date < today && !['שולם','בוטל'].includes(p.status));
+  if(overdueInc.length) alerts.push({sev:'red', ic:'⛔', title:`${overdueInc.length} חשבוניות שמועד התשלום שלהן עבר`, sub:`סה"כ ${fmtILS(overdueInc.reduce((s,p)=>s+p.amount,0))}`, key:'overdue-income'});
+
+  // upcoming expenses (next 7 days)
+  const expPays = allExpensePayments();
+  const upcomingExp = expPays.filter(p=> p.date>=today && p.date<=sevenDaysOut && !['שולם','בוטל'].includes(p.status));
+  if(upcomingExp.length) alerts.push({sev:'orange', ic:'⏰', title:`${upcomingExp.length} הוצאות שמועד הפירעון שלהן מתקרב (7 ימים)`, sub:`סה"כ ${fmtILS(upcomingExp.reduce((s,p)=>s+p.amount,0))}`, key:'upcoming-expense'});
+
+  // checks due in 7 days
+  const checkExpenseIds = new Set(DB.expenses.filter(e=>e.type==="צ'קים בחוץ").map(e=>e.id));
+  const upcomingChecks = expPays.filter(p=> checkExpenseIds.has(p.expenseId) && p.date>=today && p.date<=sevenDaysOut && p.status!=='בוטל');
+  if(upcomingChecks.length) alerts.push({sev:'orange', ic:'🧾', title:`${upcomingChecks.length} צ'קים לפירעון בשבעת הימים הקרובים`, sub:`סה"כ ${fmtILS(upcomingChecks.reduce((s,p)=>s+p.amount,0))}`, key:'upcoming-checks'});
+
+  // credit card charges upcoming
+  const creditExpenseIds = new Set(DB.expenses.filter(e=>e.type==='כרטיסי אשראי').map(e=>e.id));
+  const upcomingCredit = expPays.filter(p=> creditExpenseIds.has(p.expenseId) && p.date>=today && p.date<=sevenDaysOut && p.status!=='בוטל');
+  if(upcomingCredit.length) alerts.push({sev:'blue', ic:'💳', title:`${upcomingCredit.length} חיובי אשראי צפויים בקרוב`, sub:`סה"כ ${fmtILS(upcomingCredit.reduce((s,p)=>s+p.amount,0))}`, key:'upcoming-credit'});
+
+  // loss months in next 4 months forecast
+  monthsAhead(4).forEach(mk=>{
+    const st = monthStats(mk,'expected');
+    if(st.balance<0) alerts.push({sev:'red', ic:'📉', title:`חודש הפסד צפוי: ${monthLabel(mk)}`, sub:`יתרה חודשית ${fmtILS(st.balance)}`, key:'loss-'+mk});
+    if(st.balance15<0) alerts.push({sev:'orange', ic:'📆', title:`יתרה שלילית עד ה-15 בחודש ${monthLabel(mk)}`, sub:`יתרה עד ה-15: ${fmtILS(st.balance15)}`, key:'neg15-'+mk});
+    const cum = cumulativeBalanceThroughMonth(mk,'expected');
+    if(cum < Number(DB.warningThreshold||0)) alerts.push({sev:'orange', ic:'📊', title:`יתרה צפויה בסוף ${monthLabel(mk)} מתחת לרף האזהרה`, sub:`יתרה מצטברת: ${fmtILS(cum)} (רף: ${fmtILS(DB.warningThreshold)})`, key:'threshold-'+mk});
+  });
+
+  // unpaid invoices overall
+  const unpaidInvoices = DB.incomeInvoices.filter(inv=> inv.payments.some(p=>p.status!=='שולם' && p.status!=='בוטל'));
+  if(unpaidInvoices.length) alerts.push({sev:'blue', ic:'📄', title:`${unpaidInvoices.length} חשבוניות עם יתרה שטרם שולמה`, sub:'לצפייה בדוח לקוחות שטרם שילמו', key:'unpaid-invoices'});
+
+  return alerts.filter(a=> !DB.dismissedAlerts.includes(a.key));
+}
+/* =========================================================================
+   מסגרת האפליקציה: ניווט, סרגל עליון, רכיב מד-מחוגים (גאוג')
+   ========================================================================= */
+const APP_BUILD_VERSION = '2026-07-21 v13-cloud';
+const NAV_ITEMS = [
+  {id:'dashboard', ic:'🏠', label:'דשבורד'},
+  {id:'income-entry', ic:'🧾', label:'הזנת חשבונית'},
+  {id:'income-table', ic:'💰', label:'הכנסות'},
+  {id:'invoices-list', ic:'📋', label:'רשימת חשבוניות'},
+  {id:'expense-entry', ic:'➖', label:'הזנת הוצאה'},
+  {id:'expense-table', ic:'📤', label:'הוצאות'},
+  {id:'monthly-cashflow', ic:'📅', label:'תזרים חודשי'},
+  {id:'forecast', ic:'🔭', label:'תחזית 4 חודשים'},
+  {id:'opening-balance', ic:'🏦', label:'יתרת פתיחה'},
+  {id:'bank-balance', ic:'🏛️', label:'יתרת בנק חודשית'},
+  {id:'reports', ic:'📊', label:'דוחות'},
+  {id:'alerts', ic:'🔔', label:'התראות'},
+  {id:'contacts', ic:'👥', label:'לקוחות וספקים'},
+  {id:'settings', ic:'⚙️', label:'הגדרות'}
+];
+
+let currentView = 'dashboard';
+let viewState = {}; // per-view transient state (selected month, filters etc)
+
+function renderSidenav(){
+  const alerts = computeAlerts();
+  const redCount = alerts.filter(a=>a.sev==='red'||a.sev==='orange').length;
+  const html = `
+    <div class="brand">
+      <div class="gear"><span>⚙️</span></div>
+      <div class="txt"><b>איזון תעשיות ומתכת</b><small>מערכת ניהול תזרים מזומנים</small></div>
+    </div>
+    ${NAV_ITEMS.map(n=>`
+      <div class="navlink ${currentView===n.id?'active':''}" onclick="navigateTo('${n.id}')">
+        <span class="ic">${n.ic}</span><span>${n.label}</span>
+        ${n.id==='alerts' && redCount>0 ? `<span class="badge-count">${redCount}</span>` : ''}
+      </div>`).join('')}
+  `;
+  document.getElementById('sidenav').innerHTML = html;
+}
+
+function renderTopbar(){
+  const titles = {
+    'dashboard':['דשבורד ראשי','תמונת מצב תזרימית עדכנית'],
+    'income-entry':['הזנת חשבונית הכנסה','רישום חשבונית חדשה ופריסת תשלומים'],
+    'income-table':['טבלת הכנסות','ניהול חשבוניות ותשלומים'],
+    'invoices-list':['רשימת חשבוניות','כל החשבוניות שהוקלדו - לקוח, סכום, תאריך הוצאה ותאריך פירעון'],
+    'expense-entry':['הזנת הוצאה','רישום הוצאה חדשה'],
+    'expense-table':['טבלת הוצאות','ניהול הוצאות ותשלומים'],
+    'monthly-cashflow':['תזרים חודשי','תצוגה יומית של תנועות הכספים'],
+    'forecast':['תחזית ארבעה חודשים','תמונת מצב מורחבת'],
+    'opening-balance':['יתרת פתיחה','הגדרת יתרת פתיחה לחשבון הבנק'],
+    'bank-balance':['יתרת בנק חודשית','קביעת יתרת בנק ל-1 לחודש נבחר, לפי דוח הבנק בפועל'],
+    'reports':['דוחות','ייצוא וניתוח נתונים'],
+    'alerts':['התראות','מעקב אחר נקודות תשומת לב'],
+    'contacts':['לקוחות וספקים','ניהול אנשי קשר עסקיים'],
+    'settings':['הגדרות מערכת','משתמשים, קטגוריות ורף אזהרה']
+  };
+  const [t,s] = titles[currentView]||['',''];
+  document.getElementById('topbarSlot').innerHTML = `
+    <div class="topbar">
+      <button class="iconbtn mobileonly" onclick="document.getElementById('sidenav').classList.toggle('open')">☰</button>
+      <div>
+        <h1>${t}</h1>
+        <div class="sub">${s} · ${fmtDateHe(todayISO())} · גרסה ${APP_BUILD_VERSION} · <span id="cloudStatusBadge">${cloudStatusHTML()}</span></div>
+      </div>
+      <div class="actions">
+        <button class="iconbtn" onclick="refreshAll(true)">🔄 רענון נתונים</button>
+        <button class="iconbtn" onclick="navigateTo('settings')">⚙️ הגדרות</button>
+      </div>
+    </div>`;
+}
+
+function cloudStatusHTML(){
+  if(cloudStatus==='online') return `<span style="color:var(--green);font-weight:700;">☁️ מחובר לענן</span>`;
+  if(cloudStatus==='offline') return `<span style="color:var(--red);font-weight:700;">⚠️ לא מחובר לענן (עובד מקומית)</span>`;
+  return `<span style="color:var(--muted);">☁️ מתחבר לענן...</span>`;
+}
+function updateCloudStatusUI(){
+  const el = document.getElementById('cloudStatusBadge');
+  if(el) el.innerHTML = cloudStatusHTML();
+}
+
+function navigateTo(viewId, state){
+  currentView = viewId;
+  viewState = state||{};
+  try{ renderSidenav(); }catch(e){ console.error('renderSidenav error:', e); }
+  try{ renderTopbar(); }catch(e){ console.error('renderTopbar error:', e); }
+  renderCurrentView();
+  const sn = document.getElementById('sidenav');
+  if(sn) sn.classList.remove('open');
+  window.scrollTo(0,0);
+}
+
+async function refreshAll(showMsg){
+  await loadDB();
+  ensureDefaultCreditCardExpense();
+  renderSidenav();
+  renderTopbar();
+  renderCurrentView();
+  if(showMsg) showToast('הנתונים רועננו בהצלחה');
+}
+
+function renderCurrentView(){
+  const map = {
+    'dashboard': renderDashboardView,
+    'income-entry': renderIncomeEntryView,
+    'income-table': renderIncomeTableView,
+    'invoices-list': renderInvoicesListView,
+    'expense-entry': renderExpenseEntryView,
+    'expense-table': renderExpenseTableView,
+    'monthly-cashflow': renderMonthlyCashflowView,
+    'forecast': renderForecastView,
+    'opening-balance': renderOpeningBalanceView,
+    'bank-balance': renderBankBalanceView,
+    'reports': renderReportsView,
+    'alerts': renderAlertsView,
+    'contacts': renderContactsView,
+    'settings': renderSettingsView
+  };
+  const fn = map[currentView] || renderDashboardView;
+  document.getElementById('viewsSlot').innerHTML = `<div class="view active" id="view-${currentView}"></div>`;
+  try{
+    fn(document.getElementById('view-'+currentView));
+  }catch(err){
+    // never leave a blank screen on a rendering error - show what broke so it can
+    // actually be diagnosed and fixed, instead of just disappearing silently
+    console.error('Render error on view "'+currentView+'":', err);
+    const el = document.getElementById('view-'+currentView);
+    if(el){
+      el.innerHTML = `<div class="card" style="border:2px solid var(--red);">
+        <h3 style="color:var(--red);margin-top:0;">⚠️ שגיאה בטעינת המסך</h3>
+        <p>אירעה שגיאה בעת הצגת "${currentView}". נא לצלם את ההודעה הזו ולשלוח לתמיכה.</p>
+        <pre style="white-space:pre-wrap;background:#fff3f3;border:1px solid var(--red);border-radius:8px;padding:10px;font-size:12px;direction:ltr;text-align:left;">${String(err && err.stack || err)}</pre>
+        <button class="btn btn-blue" onclick="navigateTo('dashboard')" style="margin-top:10px;">🏠 חזרה לדשבורד</button>
+      </div>`;
+    }
+  }
+}
+
+/* ---------- gauge (machinist dial) ---------- */
+function gaugeSVG(amount, refMax, color, label){
+  refMax = Math.max(refMax, 1);
+  const ratio = Math.max(0, Math.min(1, amount/refMax));
+  const angle = -90 + ratio*180; // -90..90
+  const rad = angle*Math.PI/180;
+  const cx=60, cy=58, r=44;
+  const nx = cx + r*0.78*Math.sin(rad);
+  const ny = cy - r*0.78*Math.cos(rad);
+  // ticks
+  let ticks='';
+  for(let i=0;i<=8;i++){
+    const a = -90 + (i/8)*180;
+    const ar = a*Math.PI/180;
+    const x1 = cx + r*0.86*Math.sin(ar), y1 = cy - r*0.86*Math.cos(ar);
+    const x2 = cx + r*0.98*Math.sin(ar), y2 = cy - r*0.98*Math.cos(ar);
+    ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#cfd6db" stroke-width="2"/>`;
+  }
+  const arcId = 'arc'+Math.random().toString(36).slice(2,8);
+  return `
+  <svg viewBox="0 0 120 78" width="100%" height="72">
+    <path d="M 16 58 A 44 44 0 0 1 104 58" fill="none" stroke="#e6eaed" stroke-width="9" stroke-linecap="round"/>
+    <path d="M 16 58 A 44 44 0 0 1 104 58" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round"
+      stroke-dasharray="${ratio*138.2} 999"/>
+    ${ticks}
+    <circle cx="${cx}" cy="${cy}" r="5" fill="${color}"/>
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="2" fill="#fff"/>
+  </svg>`;
+}
+function renderGaugeBlock(label, amount, refMax, color){
+  return `
+    <div class="gauge-wrap">
+      ${gaugeSVG(amount, refMax, color, label)}
+      <div class="gauge-label">${label}</div>
+      <div class="gauge-amount" style="color:${color}">${fmtILS(amount)}</div>
+    </div>`;
+}
+
+/* ---------- combined dual-needle gauge: one dial, income + expense needles, profit/loss background ---------- */
+const GAUGE_INCOME_NEEDLE = '#0f6b34';
+const GAUGE_EXPENSE_NEEDLE = '#9b2c2c';
+function combinedGaugeSVG(income, expense, refMax){
+  refMax = Math.max(refMax, 1);
+  const profit = income >= expense;
+  const bgFill = profit ? 'var(--green-bg)' : 'var(--red-bg)';
+  const ringColor = profit ? 'var(--green)' : 'var(--red)';
+  const cx=60, cy=60, r=44;
+  function needleEnd(val){
+    const ratio = Math.max(0, Math.min(1, val/refMax));
+    const angle = -90 + ratio*180;
+    const rad = angle*Math.PI/180;
+    return { x: cx + r*0.76*Math.sin(rad), y: cy - r*0.76*Math.cos(rad) };
+  }
+  const incPt = needleEnd(income);
+  const expPt = needleEnd(expense);
+  let ticks='';
+  for(let i=0;i<=8;i++){
+    const a = -90 + (i/8)*180;
+    const ar = a*Math.PI/180;
+    const x1 = cx + r*0.87*Math.sin(ar), y1 = cy - r*0.87*Math.cos(ar);
+    const x2 = cx + r*0.99*Math.sin(ar), y2 = cy - r*0.99*Math.cos(ar);
+    ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${profit?'#ffffffb0':'#ffffffb0'}" stroke-width="2"/>`;
+  }
+  return `
+  <svg viewBox="0 0 120 80" width="100%" height="88">
+    <path d="M 16 60 A 44 44 0 0 1 104 60 L 104 60 Z" fill="${bgFill}"/>
+    <path d="M 16 60 A 44 44 0 0 1 104 60" fill="none" stroke="${ringColor}" stroke-width="4" stroke-linecap="round"/>
+    ${ticks}
+    <line x1="${cx}" y1="${cy}" x2="${expPt.x}" y2="${expPt.y}" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy}" x2="${expPt.x}" y2="${expPt.y}" stroke="${GAUGE_EXPENSE_NEEDLE}" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy}" x2="${incPt.x}" y2="${incPt.y}" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy}" x2="${incPt.x}" y2="${incPt.y}" stroke="${GAUGE_INCOME_NEEDLE}" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="5.5" fill="#ffffff" stroke="${ringColor}" stroke-width="2"/>
+  </svg>`;
+}
+function renderCombinedGaugeBlock(income, expense, refMax){
+  return `
+    <div style="text-align:center;">
+      ${combinedGaugeSVG(income, expense, refMax)}
+      <div style="display:flex;justify-content:center;gap:14px;margin-top:2px;font-size:11px;flex-wrap:wrap;">
+        <span style="display:flex;align-items:center;gap:4px;"><i style="width:9px;height:9px;background:${GAUGE_INCOME_NEEDLE};border-radius:50%;display:inline-block;"></i>הכנסות: <b style="color:${GAUGE_INCOME_NEEDLE}">${fmtILS(income)}</b></span>
+        <span style="display:flex;align-items:center;gap:4px;"><i style="width:9px;height:9px;background:${GAUGE_EXPENSE_NEEDLE};border-radius:50%;display:inline-block;"></i>הוצאות: <b style="color:${GAUGE_EXPENSE_NEEDLE}">${fmtILS(expense)}</b></span>
+      </div>
+    </div>`;
+}
+
+/* ---------- colorful bar chart (only dates that actually have a movement) ---------- */
+function showChartTooltip(el){
+  const tt = document.getElementById('chartTooltip');
+  if(!tt) return;
+  tt.innerHTML = el.getAttribute('data-tt') || '';
+  tt.style.display = 'block';
+  const rect = el.getBoundingClientRect();
+  const ttW = tt.offsetWidth || 220, ttH = tt.offsetHeight || 40;
+  let left = rect.left + rect.width/2 - ttW/2;
+  left = Math.max(8, Math.min(window.innerWidth - ttW - 8, left));
+  let top = rect.top - ttH - 10;
+  if(top < 8) top = rect.bottom + 10; // flip below the bar if there's no room above
+  tt.style.left = left + 'px';
+  tt.style.top = top + 'px';
+}
+function hideChartTooltip(){
+  const tt = document.getElementById('chartTooltip');
+  if(tt) tt.style.display = 'none';
+}
+// on touch devices there's no "mouseleave" - tapping anywhere else should dismiss the tooltip
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.barchart-bar')) hideChartTooltip();
+});
+
+function renderBarChart(entries, seriesDefs, opts){
+  opts = opts||{};
+  if(!entries.length){
+    return `<div class="barchart-empty">אין תנועות להצגה בטווח שנבחר</div>`;
+  }
+  const maxVal = Math.max(1, ...entries.map(e=> seriesDefs.map(s=> Math.abs(e[s.key]||0))).reduce((a,b)=>a.concat(b),[]));
+  const legend = `<div class="chart-legend">${seriesDefs.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}${entries.some(e=>(e.incomeDetail||[]).some(d=>String(d.label).includes('🟣')))?'<span><i style="background:#8b5cf6"></i>🟣 כולל חשבונית זיכוי (קו סגול בראש העמודה)</span>':''}</div>`;
+  const escHtml = (s)=> String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const escAttr = (s)=> String(s).replace(/"/g,'&quot;');
+  const cols = entries.map(e=>{
+    const bars = seriesDefs.map(s=>{
+      const v = e[s.key]||0;
+      if(!v) return '';
+      const h = Math.max(6, Math.round((Math.abs(v)/maxVal)*140));
+      const detailArr = e[s.key+'Detail'];
+      // detect credit invoices from the existing detail labels (already marked with 🟣) so
+      // the bar itself shows a clear, always-visible indicator - not just on hover
+      const hasCredit = s.key==='income' && detailArr && detailArr.some(d=> String(d.label).includes('🟣'));
+      // Custom tooltip (not the native title="" attribute) - native tooltips are slow to
+      // appear, easy to miss, and don't work at all on touch/mobile devices. This shows
+      // on hover (desktop) and on tap (mobile), with the credit line properly colored.
+      let tooltipHtml;
+      if(detailArr && detailArr.length){
+        tooltipHtml = `<b>${escHtml(s.name)} - ${escHtml(e.label)}</b>` + detailArr.map(d=>{
+          const isCredit = String(d.label).includes('🟣');
+          return `<div style="${isCredit?'color:#c9a6ff;font-weight:600;':''}margin-top:3px;">${escHtml(d.label)}: ${escHtml(fmtILS(d.amount))}</div>`;
+        }).join('');
+      } else {
+        tooltipHtml = `<b>${escHtml(s.name)} - ${escHtml(e.label)}</b><div style="margin-top:3px;">${escHtml(fmtILS(v))}</div>`;
+      }
+      const ttAttr = escAttr(tooltipHtml);
+      const creditBorder = hasCredit ? 'border-top:4px solid #8b5cf6;box-sizing:border-box;' : '';
+      const valPrefix = hasCredit ? '🟣 ' : '';
+      const hoverAttrs = `data-tt="${ttAttr}" onmouseenter="showChartTooltip(this)" onmouseleave="hideChartTooltip()" onclick="showChartTooltip(this)"`;
+      const stackArr = e[s.key+'Stack'];
+      if(stackArr && stackArr.length){
+        const segs = stackArr.map(seg=>{
+          const segH = Math.max(1, Math.round((seg.amount/v)*h));
+          return `<div style="height:${segH}px;background:${expenseTypeColor(seg.type)};width:100%;"></div>`;
+        }).join('');
+        return `<div class="barchart-bar" style="height:${h}px;background:transparent;overflow:hidden;display:flex;flex-direction:column-reverse;${creditBorder}" ${hoverAttrs}>${segs}<span class="val" style="color:${s.color}">${valPrefix}${fmtILS(v)}</span></div>`;
+      }
+      return `<div class="barchart-bar" style="height:${h}px;background:${s.color};${creditBorder}" ${hoverAttrs}><span class="val" style="color:${s.color}">${valPrefix}${fmtILS(v)}</span></div>`;
+    }).join('');
+    return `<div class="barchart-col"><div class="barchart-bars">${bars}</div><div class="barchart-date">${e.label||'-'}</div></div>`;
+  }).join('');
+  const hasStack = entries.some(e=> seriesDefs.some(s=> e[s.key+'Stack'] && e[s.key+'Stack'].length));
+  const stackNote = hasStack ? `<p style="font-size:11px;color:var(--muted);margin:8px 2px 0;">🎨 צבעי ההוצאות בעמודות תואמים לסוג ההוצאה (ראו את הצבעים בטבלת ההוצאות)</p>` : '';
+  return `${legend}<div class="barchart-scroll"><div class="barchart-row">${cols}</div></div>${stackNote}`;
+}
+/* =========================================================================
+   דשבורד ראשי
+   ========================================================================= */
+function renderDashboardView(el){
+  const months = monthsAhead(4);
+  const stats = months.map(mk=> monthStats(mk,'expected'));
+  const refMax = Math.max(1, ...stats.map(s=>[s.incomeTotal, s.expenseTotal]).reduce((a,b)=>a.concat(b),[]));
+  const alerts = computeAlerts().slice(0,4);
+
+  el.innerHTML = `
+    <div class="grid4" style="margin-bottom:20px;">
+      ${months.map((mk,i)=>{
+        const s = stats[i];
+        const cls = s.balance>0?'pos':(s.balance<0?'neg':'zero');
+        const tagCls = cls;
+        const cum = cumulativeBalanceThroughMonth(mk,'expected');
+        return `
+        <div class="month-card ${cls}" onclick="navigateTo('monthly-cashflow',{month:'${mk}'})">
+          <div class="mhead">
+            <div class="mname">${monthLabel(mk)}</div>
+            <div class="tag ${tagCls}">${s.balance>0?'רווח':(s.balance<0?'הפסד':'איזון')}</div>
+          </div>
+          <div class="gauges-row">
+            ${renderCombinedGaugeBlock(s.incomeTotal, s.expenseTotal, refMax)}
+          </div>
+          <div class="balance-row"><span>יתרה חודשית</span><b style="color:${s.balance>=0?'var(--green)':'var(--red)'}">${fmtILS(s.balance)}</b></div>
+          <div class="balance-row"><span>יתרה מצטברת</span><b>${fmtILS(cum)}</b></div>
+          <div class="mini-cut">
+            <span>עד ה-15: <b style="color:${s.balance15>=0?'var(--green)':'var(--red)'}">${fmtILS(s.balance15)}</b></span>
+            <span>לסוף חודש: <b>${fmtILS(s.balance)}</b></span>
+          </div>
+          <div class="counts">
+            <span>🧾 ${s.countIncome} הכנסות</span>
+            <span>📤 ${s.countExpense} הוצאות</span>
+            ${(s.lateIncome+s.lateExpense)>0?`<span style="color:var(--red)">⚠️ ${s.lateIncome+s.lateExpense} באיחור</span>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <h3 style="margin:0 0 12px;font-size:15px;">פעולות מהירות</h3>
+      <div class="action-grid">
+        <div class="action-tile" style="background:var(--green);" onclick="navigateTo('income-entry')"><span class="ic">🧾</span>הזנת חשבונית הכנסה</div>
+        <div class="action-tile" style="background:var(--red);" onclick="navigateTo('expense-entry')"><span class="ic">➖</span>הזנת הוצאה</div>
+        <div class="action-tile" style="background:var(--blue);" onclick="navigateTo('income-table')"><span class="ic">💰</span>טבלת הכנסות</div>
+        <div class="action-tile" style="background:var(--steel-500);" onclick="navigateTo('expense-table')"><span class="ic">📤</span>טבלת הוצאות</div>
+        <div class="action-tile" style="background:var(--graphite-700);" onclick="navigateTo('monthly-cashflow')"><span class="ic">📅</span>תזרים חודשי</div>
+        <div class="action-tile" style="background:var(--brass);" onclick="navigateTo('forecast')"><span class="ic">🔭</span>תחזית 4 חודשים</div>
+        <div class="action-tile" style="background:#5b4a8a;" onclick="navigateTo('opening-balance')"><span class="ic">🏦</span>הגדרת יתרת פתיחה</div>
+        <div class="action-tile" style="background:#7c3aed;" onclick="navigateTo('bank-balance')"><span class="ic">🏛️</span>יתרת בנק חודשית</div>
+        <div class="action-tile" style="background:#2f6690;" onclick="navigateTo('reports')"><span class="ic">📊</span>דוחות</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;font-size:15px;">התראות אחרונות</h3>
+        <button class="btn btn-ghost btn-sm" onclick="navigateTo('alerts')">לכל ההתראות ←</button>
+      </div>
+      ${alerts.length? alerts.map(a=>`
+        <div class="alert sev-${a.sev}">
+          <span class="ic">${a.ic}</span>
+          <div class="txt"><b>${a.title}</b><span>${a.sub}</span></div>
+        </div>`).join('') : `<div class="empty-state"><div class="ic">✅</div>אין התראות פתוחות כרגע</div>`}
+    </div>
+  `;
+}
+/* =========================================================================
+   הזנת חשבונית הכנסה
+   ========================================================================= */
+let incomeDraftPayments = null;
+let incomeAmountMode = 'total'; // 'total' = amount to be divided across payments, 'perPayment' = fixed amount for each payment (e.g. per-check amount)
+let incomeInvoiceType = 'regular'; // 'regular' (default) or 'credit' (חשבונית זיכוי - negative amount)
+
+function renderIncomeEntryView(el, editInvoice){
+  incomeDraftPayments = null;
+  incomeAmountMode = 'total';
+  const inv = editInvoice || null;
+  incomeInvoiceType = inv && inv.isCredit ? 'credit' : 'regular';
+  currentSplitType = inv ? (inv.splitType||'equal') : 'manual';
+  el.innerHTML = `
+    <div class="card">
+      <div class="section-title">🧾 פרטי החשבונית</div>
+      <div class="field">
+        <label>סוג חשבונית</label>
+        <div class="pill-toggle">
+          <div class="pill ${incomeInvoiceType==='regular'?'active':''}" data-itype="regular" onclick="setIncomeInvoiceType('regular')">חשבונית רגילה</div>
+          <div class="pill ${incomeInvoiceType==='credit'?'active':''}" data-itype="credit" onclick="setIncomeInvoiceType('credit')">🟣 חשבונית זיכוי</div>
+        </div>
+        <div id="creditHint" style="display:${incomeInvoiceType==='credit'?'block':'none'};font-size:12px;color:#8b5cf6;margin-top:4px;">חשבונית זיכוי - יש להזין את הסכום כמספר שלילי (למשל -500)</div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>שם הלקוח *</label><input id="f_customer" list="customersList" value="${inv?inv.customer:''}"></div>
+        <datalist id="customersList">${DB.customers.map(c=>`<option value="${c.name}">`).join('')}</datalist>
+        <div class="field"><label>מספר חשבונית *</label><input id="f_invoiceNumber" value="${inv?inv.invoiceNumber:''}"></div>
+        <div class="field"><label>תאריך הוצאת החשבונית *</label><input type="date" id="f_invoiceDate" value="${inv?inv.invoiceDate:todayISO()}"></div>
+        <div class="field"><label id="f_totalAmountLabel">סכום החשבونית כולל מע"מ (ש"ח) *</label><input ${moneyInputAttrs()} id="f_totalAmount" value="${inv?fmtMoneyInputValue(inv.totalAmount):''}" onchange="onIncomeAmountOrDateChange()"></div>
+      </div>
+
+      <div class="section-title">📆 פריסת תשלומים</div>
+      <div class="form-grid">
+        <div class="field"><label>מספר תשלומים</label><input type="number" id="f_numPayments" min="1" value="${inv?inv.numPayments:1}" onchange="onIncomeAmountOrDateChange()"></div>
+        <div class="field"><label>מועד התשלום הראשון *</label><input type="date" id="f_firstDate" value="${inv?inv.payments[0].date:todayISO()}" onchange="onIncomeAmountOrDateChange()"></div>
+      </div>
+      <div class="field">
+        <label>אופן הזנת הסכום</label>
+        <div class="pill-toggle">
+          <div class="pill ${incomeAmountMode==='total'?'active':''}" data-iamode="total" onclick="setIncomeAmountMode('total')">סה"כ כולל (לחלוקה)</div>
+          <div class="pill ${incomeAmountMode==='perPayment'?'active':''}" data-iamode="perPayment" onclick="setIncomeAmountMode('perPayment')">סכום קבוע לכל תשלום / צ'ק</div>
+        </div>
+      </div>
+      <div class="field" id="incomeSplitTypeWrap" style="display:${incomeAmountMode==='perPayment'?'none':'block'}">
+        <label>סוג חלוקה</label>
+        <div class="pill-toggle">
+          <div class="pill ${currentSplitType==='equal'?'active':''}" data-split="equal" onclick="setSplitType('equal')">חלוקה שווה</div>
+          <div class="pill ${currentSplitType==='manual'?'active':''}" data-split="manual" onclick="setSplitType('manual')">חלוקה ידנית</div>
+        </div>
+      </div>
+      <div class="field"><label>סטטוס התשלום הראשוני</label>
+        <select id="f_status">${STATUSES.map(s=>`<option ${s==='צפוי'?'selected':''}>${s}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>הערות</label><textarea id="f_notes" rows="2">${inv?inv.notes||'':''}</textarea></div>
+
+      <button class="btn btn-blue" onclick="buildIncomePreview()">🔍 חשב תצוגה מקדימה</button>
+
+      <div id="incomePreviewWrap" style="margin-top:18px;"></div>
+
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button class="btn btn-green" id="saveIncomeBtn" onclick="saveIncomeInvoice(${inv?`'${inv.id}'`:'null'})">💾 שמור חשבונית</button>
+        <button class="btn btn-ghost" onclick="navigateTo('income-table')">ביטול</button>
+      </div>
+    </div>
+  `;
+  if(inv){ buildIncomePreview(inv.splitType||'equal', inv.payments); document.getElementById('saveIncomeBtn').disabled=false; }
+}
+
+let currentSplitType = 'manual';
+function setSplitType(type){
+  currentSplitType = type;
+  document.querySelectorAll('.pill[data-split]').forEach(p=> p.classList.toggle('active', p.dataset.split===type));
+  buildIncomePreview();
+}
+
+function setIncomeAmountMode(mode){
+  incomeAmountMode = mode;
+  document.querySelectorAll('.pill[data-iamode]').forEach(p=> p.classList.toggle('active', p.dataset.iamode===mode));
+  const splitWrap = document.getElementById('incomeSplitTypeWrap');
+  if(splitWrap) splitWrap.style.display = mode==='perPayment' ? 'none' : 'block';
+  const label = document.getElementById('f_totalAmountLabel');
+  if(label) label.textContent = mode==='perPayment' ? 'סכום קבוע לכל תשלום / צ\'ק (ש"ח) *' : 'סכום החשבונית כולל מע"מ (ש"ח) *';
+  incomeDraftPayments = null;
+  buildIncomePreview();
+}
+
+function setIncomeInvoiceType(type){
+  incomeInvoiceType = type;
+  document.querySelectorAll('.pill[data-itype]').forEach(p=> p.classList.toggle('active', p.dataset.itype===type));
+  const hint = document.getElementById('creditHint');
+  if(hint) hint.style.display = type==='credit' ? 'block' : 'none';
+  incomeDraftPayments = null;
+}
+
+function onIncomeAmountOrDateChange(){
+  // Critical safety net: if the user edits the top-level date/count/amount fields on an
+  // already-loaded invoice (e.g. correcting a due date) without re-clicking "חשב תצוגה מקדימה",
+  // the change must still take effect on save - it must never be silently discarded.
+  const num = Math.max(1, parseInt(document.getElementById('f_numPayments').value)||1);
+  if(incomeDraftPayments && incomeDraftPayments.length===1 && num===1){
+    // single payment - no ambiguity, sync the date directly onto the actual draft payment
+    const newDate = document.getElementById('f_firstDate').value;
+    if(newDate) incomeDraftPayments[0].date = newDate;
+  } else {
+    // payment count changed, or draft not yet built - force a full, fresh rebuild
+    incomeDraftPayments = null;
+  }
+  buildIncomePreview();
+}
+
+function buildIncomePreview(forceType, existingPayments){
+  const enteredAmount = parseMoneyString(document.getElementById('f_totalAmount').value);
+  const num = Math.max(1, parseInt(document.getElementById('f_numPayments').value)||1);
+  const firstDate = document.getElementById('f_firstDate').value || todayISO();
+  const type = forceType || currentSplitType;
+  const wrap = document.getElementById('incomePreviewWrap');
+
+  if(enteredAmount===0){ showToast('יש להזין סכום חשבונית תקין', true); return; }
+  if(incomeInvoiceType==='credit' && enteredAmount>0){ showToast('חשבונית זיכוי - יש להזין את הסכום כמספר שלילי', true); return; }
+  if(incomeInvoiceType!=='credit' && enteredAmount<0){ showToast('סכום חשבונית רגילה חייב להיות חיובי', true); return; }
+
+  const total = incomeAmountMode==='perPayment' ? round2(enteredAmount*num) : enteredAmount;
+
+  if(existingPayments){
+    incomeDraftPayments = existingPayments.map(p=>({...p}));
+  } else if(incomeAmountMode==='perPayment'){
+    incomeDraftPayments = Array.from({length:num},(_,i)=>({
+      paymentNumber:i+1, date: addMonths(firstDate, i), amount: enteredAmount, status:'צפוי', paidAmount:0
+    }));
+  } else if(type==='equal'){
+    incomeDraftPayments = buildEqualSplit(total, num, firstDate, 1);
+  } else {
+    // manual: start from equal then let user edit each row directly
+    if(!incomeDraftPayments || incomeDraftPayments.length!==num){
+      incomeDraftPayments = buildEqualSplit(total, num, firstDate, 1);
+    }
+  }
+
+  const canEditRows = incomeAmountMode!=='perPayment' && type==='manual';
+  wrap.innerHTML = `
+    <div class="section-title" style="margin-top:0;">👁 תצוגה מקדימה של פריסת התשלומים</div>
+    ${incomeAmountMode==='perPayment'?`<p style="font-size:12.5px;color:var(--blue);">כל תשלום/צ'ק יהיה בסך ${fmtILS(enteredAmount)} - סה"כ ${num} תשלומים = ${fmtILS(total)}.</p>`:''}
+    <div class="table-wrap">
+      <table><thead><tr><th>#</th><th>מועד תשלום</th><th>סכום</th><th>סטטוס</th></tr></thead>
+      <tbody id="incomePreviewBody">
+      ${incomeDraftPayments.map((p,i)=>`
+        <tr>
+          <td>${p.paymentNumber}</td>
+          <td>${canEditRows?`<input type="date" style="min-width:140px" value="${p.date}" onchange="updateDraftPayment(${i},'date',this.value)">`:fmtDateHe(p.date)}</td>
+          <td>${canEditRows?`<input ${moneyInputAttrs()} style="min-width:110px" value="${fmtMoneyInputValue(p.amount)}" onchange="updateDraftPayment(${i},'amount',this.value)">`:fmtILS(p.amount)}</td>
+          <td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div style="margin-top:8px;font-size:12.5px;color:var(--muted);">סה"כ פריסה: <b>${fmtILS(incomeDraftPayments.reduce((s,p)=>s+p.amount,0))}</b> מתוך <b>${fmtILS(total)}</b></div>
+  `;
+  document.getElementById('saveIncomeBtn').disabled = false;
+}
+
+function updateDraftPayment(i, field, val){
+  incomeDraftPayments[i][field] = field==='amount'? round2(parseMoneyString(val)) : val;
+  buildIncomePreview('manual', incomeDraftPayments);
+}
+
+function saveIncomeInvoice(editId){
+  const customer = document.getElementById('f_customer').value.trim();
+  const invoiceNumber = document.getElementById('f_invoiceNumber').value.trim();
+  const invoiceDate = document.getElementById('f_invoiceDate').value;
+  const notes = document.getElementById('f_notes').value;
+  const status = document.getElementById('f_status').value;
+
+  // A simple invoice (no split, no checks) shouldn't require clicking
+  // "חשב תצוגה מקדימה" first - build the breakdown automatically if needed.
+  if(!incomeDraftPayments){
+    buildIncomePreview();
+  }
+
+  const totalAmount = incomeDraftPayments ? round2(incomeDraftPayments.reduce((s,p)=>s+p.amount,0)) : parseMoneyString(document.getElementById('f_totalAmount').value);
+  const isCredit = incomeInvoiceType === 'credit';
+
+  if(!customer || !invoiceNumber || !invoiceDate || totalAmount===0 || !incomeDraftPayments){
+    showToast('יש למלא את כל השדות החיוניים (לקוח, מספר חשבונית, תאריך וסכום תקין)', true); return;
+  }
+  if(isCredit && totalAmount>0){
+    showToast('חשבונית זיכוי - יש להזין את הסכום כמספר שלילי', true); return;
+  }
+  if(!isCredit && totalAmount<0){
+    showToast('סכום חשבונית רגילה חייב להיות חיובי (עבור זיכוי, בחר "חשבונית זיכוי" למעלה)', true); return;
+  }
+
+  const dup = DB.incomeInvoices.find(i=> i.invoiceNumber===invoiceNumber && i.id!==editId);
+  const doSave = ()=>{
+    incomeDraftPayments.forEach(p=> p.status = p.status||status);
+    if(editId){
+      const inv = DB.incomeInvoices.find(i=>i.id===editId);
+      Object.assign(inv, {customer, invoiceNumber, invoiceDate, totalAmount, notes, isCredit, splitType: currentSplitType, numPayments: incomeDraftPayments.length, payments: incomeDraftPayments.map(p=>({...p, id:p.id||uid('ipay'), status: p.status||status})), updatedAt: nowISO()});
+      logAudit('incomeInvoice', editId, 'update');
+    } else {
+      const newInv = {
+        id: uid('inv'), customer, invoiceNumber, invoiceDate, totalAmount, notes, isCredit,
+        splitType: currentSplitType, numPayments: incomeDraftPayments.length,
+        payments: incomeDraftPayments.map(p=>({...p, id:uid('ipay'), status})),
+        createdBy: DB.currentUser, createdAt: nowISO(), updatedAt: nowISO()
+      };
+      DB.incomeInvoices.push(newInv);
+      logAudit('incomeInvoice', newInv.id, 'create');
+      if(customer && !DB.customers.find(c=>c.name===customer)) DB.customers.push({id:uid('cust'), name:customer});
+    }
+    saveDB();
+    showToast('הנתונים נשמרו בהצלחה');
+    const firstPaymentYear = incomeDraftPayments.length? Number(incomeDraftPayments[0].date.slice(0,4)) : new Date().getFullYear();
+    navigateTo('income-table', {year: firstPaymentYear});
+  };
+
+  if(dup){
+    confirmDialog(`קיימת במערכת חשבונית עם מספר <b>${invoiceNumber}</b>. האם ברצונך להמשיך?`, doSave);
+  } else {
+    doSave();
+  }
+}
+/* =========================================================================
+   רשימת חשבוניות - תצוגה פשוטה ומרוכזת של כל החשבוניות שהוקלדו
+   ========================================================================= */
+function renderInvoicesListView(el){
+  const search = (viewState.search||'').toLowerCase();
+  let invs = DB.incomeInvoices.slice();
+  if(search){
+    invs = invs.filter(inv=> (inv.customer||'').toLowerCase().includes(search) || (inv.invoiceNumber||'').toLowerCase().includes(search));
+  }
+  invs.sort((a,b)=>{
+    const da = a.payments.length? a.payments.map(p=>p.date).sort()[0] : '9999-99-99';
+    const db = b.payments.length? b.payments.map(p=>p.date).sort()[0] : '9999-99-99';
+    return da<db? -1 : (da>db? 1 : 0);
+  });
+  el.innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box"><input type="text" placeholder="חיפוש לפי לקוח או מספר חשבונית..." value="${viewState.search||''}" oninput="viewState.search=this.value; renderCurrentView();"><span class="ic">🔍</span></div>
+        <button class="btn btn-green btn-sm" onclick="navigateTo('income-entry')">+ חשבונית חדשה</button>
+      </div>
+      <p style="color:var(--muted);font-size:12.5px;margin:0 0 12px;">${invs.length} חשבוניות במערכת, ממוינות לפי מועד הפירעון הקרוב ביותר. כל שדה בטבלה ניתן לעריכה ישירה - פשוט לחצו ושנו.</p>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>שם הלקוח</th><th>מס׳ חשבונית</th><th>סכום חשבונית כולל מע"מ</th><th>תאריך הוצאת החשבונית</th><th>תאריך/י פירעון</th><th>פעולות</th>
+        </tr></thead>
+        <tbody>
+        ${invs.length? invs.map(inv=>{
+          const singlePayment = inv.payments.length===1;
+          const creditStyle = inv.isCredit ? 'style="background:#f3e8ff;"' : '';
+          return `
+          <tr ${creditStyle}>
+            <td>${inv.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;margin-left:6px;">🟣 זיכוי</span>':''}<input value="${inv.customer}" style="min-width:110px" onchange="updateInvoiceField('${inv.id}','customer',this.value)"></td>
+            <td><input value="${inv.invoiceNumber}" style="min-width:90px" onchange="updateInvoiceField('${inv.id}','invoiceNumber',this.value)"></td>
+            <td><input ${moneyInputAttrs()} style="min-width:120px" value="${fmtMoneyInputValue(inv.totalAmount)}" onchange="updateInvoiceField('${inv.id}','totalAmount',this.value)">
+              ${!singlePayment?`<div style="font-size:10px;color:var(--muted);">${inv.numPayments} תשלומים - יחולק מחדש באופן שווה/יחסי</div>`:''}</td>
+            <td><input type="date" style="min-width:140px" value="${inv.invoiceDate}" onchange="updateInvoiceField('${inv.id}','invoiceDate',this.value)"></td>
+            <td>${singlePayment
+              ? `<input type="date" style="min-width:140px" value="${inv.payments[0].date}" onchange="updateInvoiceField('${inv.id}','dueDate',this.value)">`
+              : inv.payments.slice().sort((a,b)=>a.date<b.date?-1:1).map(p=>`<div style="margin:2px 0;"><input type="date" style="min-width:140px" value="${p.date}" onchange="updateInvoicePaymentDate('${inv.id}','${p.id}',this.value)"></div>`).join('')}</td>
+            <td><div class="rowbtns">
+              <button class="iconsm" title="צפייה" onclick="viewIncomePayment('${inv.id}','${inv.payments[0].id}')">👁</button>
+              <button class="iconsm" title="עריכה מלאה (כולל פריסת תשלומים)" onclick="editIncomeInvoice('${inv.id}')">✏️</button>
+              <button class="iconsm" title="מחיקת חשבונית" onclick="deleteWholeInvoice('${inv.id}')">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join('') : `<tr><td colspan="6"><div class="empty-state"><div class="ic">📭</div>לא נמצאו חשבוניות תואמות - לחצו על "חשבונית חדשה" כדי להתחיל</div></td></tr>`}
+        </tbody></table>
+      </div>
+    </div>
+  `;
+}
+
+function updateInvoiceField(invId, field, rawValue){
+  const inv = DB.incomeInvoices.find(i=>i.id===invId);
+  if(!inv) return;
+
+  const applyUpdate = ()=>{
+    if(field==='customer'){
+      const old = inv.customer; inv.customer = rawValue.trim();
+      if(inv.customer && !DB.customers.find(c=>c.name===inv.customer)) DB.customers.push({id:uid('cust'), name:inv.customer});
+      logAudit('incomeInvoice', invId, 'update', 'customer', old, inv.customer);
+    } else if(field==='invoiceNumber'){
+      const old = inv.invoiceNumber; inv.invoiceNumber = rawValue.trim();
+      logAudit('incomeInvoice', invId, 'update', 'invoiceNumber', old, inv.invoiceNumber);
+    } else if(field==='totalAmount'){
+      const newTotal = parseMoneyString(rawValue);
+      const old = inv.totalAmount;
+      inv.totalAmount = newTotal;
+      // re-split the whole payment series as if the invoice were freshly entered with the new total,
+      // so every month/dashboard/report that depends on these payments is automatically correct
+      const n = inv.payments.length;
+      if(n<=1){
+        if(inv.payments[0]) inv.payments[0].amount = newTotal;
+      } else if(inv.splitType==='manual'){
+        const oldTotal = old || inv.payments.reduce((s,p)=>s+p.amount,0) || 1;
+        let sum = 0;
+        inv.payments.forEach((p,i)=>{
+          if(i===n-1){ p.amount = round2(newTotal - sum); }
+          else { p.amount = round2(p.amount * (newTotal/oldTotal)); sum = round2(sum+p.amount); }
+        });
+      } else {
+        const per = Math.trunc((newTotal/n)*100)/100;
+        let sum = 0;
+        inv.payments.forEach((p,i)=>{
+          if(i===n-1){ p.amount = round2(newTotal - sum); }
+          else { p.amount = per; sum = round2(sum+per); }
+        });
+      }
+      logAudit('incomeInvoice', invId, 'update', 'totalAmount', old, newTotal);
+    } else if(field==='invoiceDate'){
+      const old = inv.invoiceDate; inv.invoiceDate = rawValue;
+      logAudit('incomeInvoice', invId, 'update', 'invoiceDate', old, rawValue);
+    } else if(field==='dueDate'){
+      if(inv.payments.length===1){
+        const old = inv.payments[0].date; inv.payments[0].date = rawValue;
+        logAudit('incomePayment', inv.payments[0].id, 'update', 'date', old, rawValue);
+      }
+    }
+    inv.updatedAt = nowISO();
+    saveDB();
+    showToast('הנתונים נשמרו בהצלחה - התזרים והדוחות עודכנו בהתאם');
+    renderCurrentView();
+  };
+
+  if(field==='invoiceNumber'){
+    const dup = DB.incomeInvoices.find(i=> i.invoiceNumber===rawValue.trim() && i.id!==invId);
+    if(dup){ confirmDialog(`קיימת במערכת חשבونית עם מספר <b>${rawValue.trim()}</b>. האם ברצונך להמשיך?`, applyUpdate); return; }
+  }
+  applyUpdate();
+}
+
+function updateInvoicePaymentDate(invId, payId, newDate){
+  const inv = DB.incomeInvoices.find(i=>i.id===invId);
+  if(!inv) return;
+  const p = inv.payments.find(x=>x.id===payId);
+  if(!p) return;
+  const old = p.date;
+  p.date = newDate;
+  inv.updatedAt = nowISO();
+  logAudit('incomePayment', payId, 'update', 'date', old, newDate);
+  saveDB();
+  showToast('הנתונים נשמרו בהצלחה - התזרים והדוחות עודכנו בהתאם');
+  renderCurrentView();
+}
+
+function deleteWholeInvoice(invId){
+  confirmDialog('האם אתה בטוח שברצונך למחוק חשבונית זו על כל תשלומיה?', ()=>{
+    const inv = DB.incomeInvoices.find(i=>i.id===invId);
+    if(!inv) return;
+    DB.recycleBin.push({id:uid('rb'), entity:'incomeInvoice', record:inv, deletedAt:nowISO(), deletedBy:DB.currentUser});
+    logAudit('incomeInvoice', invId, 'delete');
+    DB.incomeInvoices = DB.incomeInvoices.filter(i=>i.id!==invId);
+    saveDB(); showToast('החשבונית נמחקה'); renderCurrentView();
+  });
+}
+
+function renderIncomeTableView(el){
+  const st = viewState;
+  const year = st.year || new Date().getFullYear();
+  const selMonth = st.month || null; // 'YYYY-MM' or null = all
+  const filters = st.filters || {};
+
+  const yearMonths = Array.from({length:12},(_,i)=> year+'-'+String(i+1).padStart(2,'0'));
+  const monthCards = yearMonths.map(mk=>{
+    const pays = allIncomePayments().filter(p=>monthKey(p.date)===mk);
+    const expected = pays.reduce((s,p)=>s+p.amount,0);
+    const actual = pays.reduce((s,p)=> s+(p.status==='שולם'?p.amount:(p.paidAmount||0)),0);
+    const remaining = round2(expected-actual);
+    const late = pays.filter(p=>p.status==='באיחור').length;
+    return {mk, invCount: new Set(pays.map(p=>p.invoiceId)).size, expected, actual, remaining, late};
+  });
+
+  const allPays = allIncomePayments();
+  let rows = selMonth ? allPays.filter(p=>monthKey(p.date)===selMonth) : allPays.filter(p=>p.date.slice(0,4)===String(year));
+  if(filters.customer) rows = rows.filter(p=>p.customer===filters.customer);
+  if(filters.invoiceNumber) rows = rows.filter(p=>p.invoiceNumber.includes(filters.invoiceNumber));
+  if(filters.status) rows = rows.filter(p=>p.status===filters.status);
+  if(filters.minAmount) rows = rows.filter(p=>p.amount>=Number(filters.minAmount));
+  if(filters.maxAmount) rows = rows.filter(p=>p.amount<=Number(filters.maxAmount));
+  if(filters.search){
+    const q = filters.search.toLowerCase();
+    rows = rows.filter(p=> (p.customer||'').toLowerCase().includes(q) || (p.invoiceNumber||'').toLowerCase().includes(q) || (p.notes||'').toLowerCase().includes(q));
+  }
+  rows.sort((a,b)=> a.date<b.date?1:-1);
+
+  const customers = [...new Set(DB.incomeInvoices.map(i=>i.customer))];
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        <div class="year-switch">
+          <button onclick="changeIncomeYear(-1)">›</button>
+          <span>${year}</span>
+          <button onclick="changeIncomeYear(1)">‹</button>
+        </div>
+        <button class="btn btn-green btn-sm" onclick="navigateTo('income-entry')">+ חשבונית חדשה</button>
+      </div>
+      <div class="months-strip">
+        <div class="month-chip ${!selMonth?'active':''}" onclick="selectIncomeMonth(null)">כל השנה</div>
+        ${monthCards.map(m=>`<div class="month-chip ${selMonth===m.mk?'active':''}" onclick="selectIncomeMonth('${m.mk}')">${HE_MONTHS[Number(m.mk.split('-')[1])-1]}${m.late?' 🔴':''}</div>`).join('')}
+      </div>
+      <div class="grid4">
+        ${monthCards.map(m=>`
+          <div class="month-card ${m.remaining>0?'zero':'pos'}" style="cursor:pointer;padding:12px;" onclick="selectIncomeMonth('${m.mk}')">
+            <div class="mhead"><div class="mname" style="font-size:13px;">${HE_MONTHS[Number(m.mk.split('-')[1])-1]}</div>${m.late?`<div class="tag neg">${m.late} באיחור</div>`:''}</div>
+            <div style="font-size:12px;color:var(--muted);">צפוי: <b style="color:var(--ink)">${fmtILS(m.expected)}</b></div>
+            <div style="font-size:12px;color:var(--muted);">התקבל: <b style="color:var(--green)">${fmtILS(m.actual)}</b></div>
+            <div style="font-size:12px;color:var(--muted);">יתרה: <b style="color:${m.remaining>0?'var(--orange)':'var(--muted)'}">${fmtILS(m.remaining)}</b></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">${m.invCount} חשבוניות</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="section-title" style="margin-top:0;">📊 גרף הכנסות והוצאות לפי תאריך (רק תאריכים עם תנועה)</div>
+      ${(()=>{
+        const expScope = selMonth ? allExpensePayments().filter(p=>monthKey(p.date)===selMonth) : allExpensePayments().filter(p=>p.date.slice(0,4)===String(year));
+        const byDate = {};
+        rows.forEach(p=>{
+          byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
+          byDate[p.date].income += p.amount;
+          byDate[p.date].incomeDetail.push({label:`${p.isCredit?'🟣 זיכוי - ':''}${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount});
+        });
+        expScope.forEach(p=>{
+          byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
+          byDate[p.date].expense += p.amount;
+          byDate[p.date].expenseDetail.push({label:`${p.supplier} (${p.type})`, amount:p.amount});
+        });
+        const entries = Object.keys(byDate).sort().map(d=>({label: fmtDateShort(d), income: byDate[d].income, expense: byDate[d].expense, incomeDetail: byDate[d].incomeDetail, expenseDetail: byDate[d].expenseDetail, expenseStack: groupExpensesByType(expScope.filter(p=>p.date===d))}));
+        return renderBarChart(entries, [{key:'income', color:'var(--green)', name:'הכנסות'},{key:'expense', color:'var(--red)', name:'הוצאות'}]);
+      })()}
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="search-box"><input type="text" placeholder="חיפוש לפי לקוח, מס' חשבונית, הערות..." value="${filters.search||''}" oninput="setIncomeFilter('search',this.value)"><span class="ic">🔍</span></div>
+        <div class="filters">
+          <select onchange="setIncomeFilter('customer',this.value)"><option value="">כל הלקוחות</option>${customers.map(c=>`<option ${filters.customer===c?'selected':''}>${c}</option>`).join('')}</select>
+          <select onchange="setIncomeFilter('status',this.value)"><option value="">כל הסטטוסים</option>${STATUSES.map(s=>`<option ${filters.status===s?'selected':''}>${s}</option>`).join('')}</select>
+          <input type="number" placeholder="סכום מינ׳" style="width:100px" value="${filters.minAmount||''}" oninput="setIncomeFilter('minAmount',this.value)">
+          <input type="number" placeholder="סכום מקס׳" style="width:100px" value="${filters.maxAmount||''}" oninput="setIncomeFilter('maxAmount',this.value)">
+          <button class="btn btn-ghost btn-sm" onclick="clearIncomeFilters()">נקה סינון</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>לקוח</th><th>מס׳ חשבונית</th><th>מועד תשלום</th><th>סכום תשלום</th><th>סטטוס</th><th>שולם בפועל</th><th>יתרה</th><th>הערות</th><th>פעולות</th>
+        </tr></thead>
+        <tbody>
+        ${rows.length? rows.map(p=>{
+          const paid = p.status==='שולם'?p.amount:(p.paidAmount||0);
+          const remaining = round2(p.amount-paid);
+          return `<tr ${p.isCredit?'style="background:#f3e8ff;"':''}>
+            <td>${p.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;margin-left:6px;">🟣 זיכוי</span>':''}${p.customer}</td><td>${p.invoiceNumber}</td><td>${fmtDateHe(p.date)}</td><td><b>${fmtILS(p.amount)}</b></td>
+            <td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td>
+            <td>${fmtILS(paid)}</td><td>${fmtILS(remaining)}</td><td>${p.notes||''}</td>
+            <td><div class="rowbtns">
+              <button class="iconsm" title="צפייה" onclick="viewIncomePayment('${p.invoiceId}','${p.id}')">👁</button>
+              <button class="iconsm" title="עריכה" onclick="editIncomeInvoice('${p.invoiceId}')">✏️</button>
+              <button class="iconsm" title="סימון כשולם" onclick="markIncomePaid('${p.invoiceId}','${p.id}')">✅</button>
+              <button class="iconsm" title="דחיית מועד" onclick="postponeIncomePayment('${p.invoiceId}','${p.id}')">⏩</button>
+              <button class="iconsm" title="שכפול חשבונית" onclick="duplicateIncomeInvoice('${p.invoiceId}')">📄</button>
+              <button class="iconsm" title="מחיקה" onclick="deleteIncomePayment('${p.invoiceId}','${p.id}')">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join('') : `<tr><td colspan="9"><div class="empty-state"><div class="ic">📭</div>לא נמצאו רשומות תואמות</div></td></tr>`}
+        </tbody></table>
+      </div>
+    </div>
+  `;
+}
+
+function changeIncomeYear(delta){ viewState.year = (viewState.year||new Date().getFullYear())+delta; renderCurrentView(); }
+function selectIncomeMonth(mk){ viewState.month = mk; renderCurrentView(); }
+function setIncomeFilter(k,v){ viewState.filters = viewState.filters||{}; viewState.filters[k]=v; renderCurrentView(); document.querySelector('.search-box input')?.focus(); }
+function clearIncomeFilters(){ viewState.filters={}; renderCurrentView(); }
+
+function findIncomeInv(invId){ return DB.incomeInvoices.find(i=>i.id===invId); }
+
+function viewIncomePayment(invId, payId){
+  const inv = findIncomeInv(invId); const p = inv.payments.find(x=>x.id===payId);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+      <div class="modal" style="max-width:480px;">
+        <div class="modal-head"><h3>👁 פרטי תשלום</h3><button class="closeX" onclick="closeModal()">✕</button></div>
+        <div class="modal-body">
+          <p><b>לקוח:</b> ${inv.customer}</p>
+          <p><b>מספר חשבונית:</b> ${inv.invoiceNumber}</p>
+          <p><b>תאריך חשבונית:</b> ${fmtDateHe(inv.invoiceDate)}</p>
+          <p><b>סכום חשבונית כולל:</b> ${fmtILS(inv.totalAmount)}</p>
+          <p><b>תשלום מספר:</b> ${p.paymentNumber} מתוך ${inv.numPayments}</p>
+          <p><b>מועד תשלום:</b> ${fmtDateHe(p.date)}</p>
+          <p><b>סכום תשלום:</b> ${fmtILS(p.amount)}</p>
+          <p><b>סטטוס:</b> ${p.status}</p>
+          <p><b>הערות:</b> ${inv.notes||'-'}</p>
+          <p style="color:var(--muted);font-size:12px;"><b>נוצר:</b> ${fmtDateHe(inv.createdAt.slice(0,10))} ע"י ${inv.createdBy||'-'}</p>
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">סגור</button></div>
+      </div>
+    </div>`;
+}
+
+function editIncomeInvoice(invId){
+  const inv = findIncomeInv(invId);
+  currentSplitType = inv.splitType||'equal';
+  currentView='income-entry';
+  renderSidenav(); renderTopbar();
+  document.getElementById('viewsSlot').innerHTML = `<div class="view active" id="view-income-entry"></div>`;
+  renderIncomeEntryView(document.getElementById('view-income-entry'), inv);
+}
+
+function markIncomePaid(invId, payId){
+  const inv = findIncomeInv(invId); const p = inv.payments.find(x=>x.id===payId);
+  const old = p.status;
+  p.status='שולם'; p.paidAmount=p.amount; inv.updatedAt=nowISO();
+  logAudit('incomePayment', payId, 'update', 'status', old, 'שולם');
+  saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+
+function postponeIncomePayment(invId, payId){
+  const inv = findIncomeInv(invId); const p = inv.payments.find(x=>x.id===payId);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg"><div class="modal" style="max-width:380px;">
+      <div class="modal-head"><h3>⏩ עריכת תשלום</h3><button class="closeX" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="field"><label>מועד תשלום</label><input type="date" id="newDateInput" value="${p.date}"></div>
+        <div class="field"><label>סכום (ש"ח) - ניתן לתקן במידת הצורך</label><input ${moneyInputAttrs()} id="newAmountInput" value="${fmtMoneyInputValue(p.amount)}"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+        <button class="btn btn-blue" onclick="confirmPostpone('${invId}','${payId}')">שמור</button>
+      </div>
+    </div></div>`;
+}
+function confirmPostpone(invId, payId){
+  const inv = findIncomeInv(invId); const p = inv.payments.find(x=>x.id===payId);
+  const oldDate=p.date, oldAmount=p.amount;
+  const newDate = document.getElementById('newDateInput').value;
+  const newAmount = round2(parseMoneyString(document.getElementById('newAmountInput').value)||p.amount);
+  if(newDate!==oldDate){ p.date=newDate; p.status='נדחה'; logAudit('incomePayment', payId, 'update', 'date', oldDate, newDate); }
+  if(newAmount!==oldAmount){ p.amount=newAmount; logAudit('incomePayment', payId, 'update', 'amount', oldAmount, newAmount); }
+  inv.updatedAt=nowISO();
+  saveDB(); closeModal(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+
+function duplicateIncomeInvoice(invId){
+  const inv = findIncomeInv(invId);
+  const copy = JSON.parse(JSON.stringify(inv));
+  copy.id = uid('inv'); copy.invoiceNumber = inv.invoiceNumber+'-copy';
+  copy.payments = copy.payments.map(p=>({...p, id:uid('ipay'), status:'צפוי', paidAmount:0}));
+  copy.createdAt=nowISO(); copy.updatedAt=nowISO(); copy.createdBy=DB.currentUser;
+  DB.incomeInvoices.push(copy);
+  logAudit('incomeInvoice', copy.id, 'duplicate', null, invId, copy.id);
+  saveDB(); showToast('החשבונית שוכפלה בהצלחה'); renderCurrentView();
+}
+
+function deleteIncomePayment(invId, payId){
+  confirmDialog('האם אתה בטוח שברצונך למחוק רשומה זו?', ()=>{
+    const inv = findIncomeInv(invId);
+    const idx = inv.payments.findIndex(x=>x.id===payId);
+    const [removed] = inv.payments.splice(idx,1);
+    DB.recycleBin.push({id:uid('rb'), entity:'incomePayment', record:{...removed, invoiceId:invId}, deletedAt:nowISO(), deletedBy:DB.currentUser});
+    logAudit('incomePayment', payId, 'delete');
+    if(inv.payments.length===0){
+      DB.incomeInvoices = DB.incomeInvoices.filter(i=>i.id!==invId);
+    }
+    saveDB(); showToast('הרשומה נמחקה'); renderCurrentView();
+  });
+}
+/* =========================================================================
+   הזנת הוצאה
+   ========================================================================= */
+let expenseDraftPayments = null;
+let expenseSplitType = 'equal';
+let expenseAmountMode = 'total'; // 'total' = amount to be divided across payments, 'perPayment' = fixed amount for each payment (e.g. per-check amount)
+
+function renderExpenseEntryView(el, editExpense){
+  expenseDraftPayments = null;
+  expenseAmountMode = 'total';
+  const ex = editExpense || null;
+  el.innerHTML = `
+    <div class="card">
+      <div class="section-title">➖ סוג ההוצאה</div>
+      <div class="field">
+        <select id="f_expType" onchange="onExpenseTypeChange()">
+          ${DB.expenseCategories.map(t=>`<option ${ex&&ex.type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="field" style="background:var(--steel-100);border-radius:12px;padding:14px;">
+        <label style="font-size:13px;">אופן הזנת הסכום - בחרו לפני מילוי שאר השדות</label>
+        <div class="pill-toggle">
+          <div class="pill ${expenseAmountMode==='total'?'active':''}" data-amode="total" onclick="setExpenseAmountMode('total')">סכום כולל (כולל מע"מ) - לחלוקה</div>
+          <div class="pill ${expenseAmountMode==='perPayment'?'active':''}" data-amode="perPayment" onclick="setExpenseAmountMode('perPayment')">הוצאה חודשית קבועה (סכום + מס' תשלומים + תאריך פרעון)</div>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>שם הספק / מקבל התשלום *</label><input id="f_supplier" list="suppliersList" value="${ex?ex.supplier:''}"></div>
+        <datalist id="suppliersList">${DB.suppliers.map(s=>`<option value="${s.name}">`).join('')}</datalist>
+        <div class="field"><label>תיאור ההוצאה</label><input id="f_description" value="${ex?ex.description||'':''}"></div>
+        <div class="field"><label id="f_expTotalLabel">הסכום הכולל (ש"ח) *</label><input ${moneyInputAttrs()} id="f_expTotal" value="${ex?fmtMoneyInputValue(ex.totalAmount):''}" onchange="onExpenseAmountOrDateChange()"></div>
+        <div class="field"><label>מספר תשלומים</label><input type="number" id="f_expNum" min="1" value="${ex?ex.numPayments:1}" onchange="onExpenseAmountOrDateChange()"></div>
+        <div class="field"><label id="f_expFirstDateLabel">מועד הפירעון הראשון *</label><input type="date" id="f_expFirstDate" value="${ex?ex.payments[0].date:todayISO()}" onchange="onExpenseAmountOrDateChange()"></div>
+        <div class="field"><label>תדירות התשלום</label>
+          <select id="f_expFreq">${FREQ_OPTIONS.map(f=>`<option value="${f.v}" ${ex&&ex.frequency===f.v?'selected':''}>${f.l}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>אמצעי תשלום</label>
+          <select id="f_payMethod">${DB.paymentMethods.map(m=>`<option ${ex&&ex.paymentMethod===m?'selected':''}>${m}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>מספר אסמכתה</label><input id="f_reference" value="${ex?ex.reference||'':''}"></div>
+      </div>
+
+      <div id="typeSpecificFields"></div>
+
+      <div class="field"><label>הערות</label><textarea id="f_expNotes" rows="2">${ex?ex.notes||'':''}</textarea></div>
+      <div class="field" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="f_isRecurring" style="width:auto;" ${ex&&ex.isRecurring?'checked':''} onchange="toggleRecurringFields()">
+        <label style="margin:0;">האם מדובר בהוצאה קבועה (הוראת קבע חוזרת ללא הגבלת זמן)</label>
+      </div>
+      <div id="recurringEndWrap" style="display:${ex&&ex.isRecurring?'block':'none'}">
+        <div class="form-grid">
+          <div class="field"><label>תאריך סיום (השאר ריק ללא תאריך סיום)</label><input type="date" id="f_endDate" value="${ex?ex.endDate||'':''}"></div>
+        </div>
+      </div>
+
+      <div id="splitTypeWrap" style="display:${expenseAmountMode==='perPayment'?'none':'flex'};gap:10px;margin:10px 0;">
+        <button class="pill active" data-esplit="equal" onclick="setExpenseSplitType('equal')">חלוקה שווה</button>
+        <button class="pill" data-esplit="manual" onclick="setExpenseSplitType('manual')">חלוקה ידנית</button>
+      </div>
+
+      <button class="btn btn-blue" onclick="buildExpensePreview()">🔍 חשב תצוגה מקדימה</button>
+      <div id="expensePreviewWrap" style="margin-top:18px;"></div>
+
+      <div style="margin-top:20px;display:flex;gap:10px;">
+        <button class="btn btn-red" id="saveExpenseBtn" onclick="saveExpense(${ex?`'${ex.id}'`:'null'})" disabled>💾 שמור הוצאה</button>
+        <button class="btn btn-ghost" onclick="navigateTo('expense-table')">ביטול</button>
+      </div>
+    </div>
+  `;
+  if(ex){
+    expenseSplitType = 'equal';
+    onExpenseTypeChange(ex.extra);
+    buildExpensePreview('equal', ex.payments);
+    document.getElementById('saveExpenseBtn').disabled=false;
+  } else {
+    onExpenseTypeChange();
+  }
+}
+
+function toggleRecurringFields(){
+  document.getElementById('recurringEndWrap').style.display = document.getElementById('f_isRecurring').checked?'block':'none';
+}
+
+function onExpenseTypeChange(extra){
+  extra = extra || {};
+  const type = document.getElementById('f_expType').value;
+  const wrap = document.getElementById('typeSpecificFields');
+  if(type === "צ'קים בחוץ"){
+    wrap.innerHTML = `
+      <div class="section-title">🧾 פרטי צ'קים</div>
+      <div class="form-grid">
+        <div class="field"><label>מספר הצ'ק הראשון</label><input id="ex_firstCheckNum" value="${extra.firstCheckNum||''}"></div>
+        <div class="field"><label>שם הבנק</label><input id="ex_bankName" value="${extra.bankName||''}"></div>
+        <div class="field"><label>מספר חשבון (רשות)</label><input id="ex_accountNum" value="${extra.accountNum||''}"></div>
+      </div>`;
+  } else if(type === 'כרטיסי אשראי'){
+    wrap.innerHTML = `
+      <div class="section-title">💳 פרטי כרטיס אשראי</div>
+      <div class="form-grid">
+        <div class="field"><label>שם חברת האשראי</label><input id="ex_ccCompany" value="${extra.ccCompany||''}"></div>
+        <div class="field"><label>4 ספרות אחרונות</label><input id="ex_ccLast4" maxlength="4" value="${extra.ccLast4||''}"></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);">💡 ברירת מחדל: מועד החיוב יוגדר אוטומטית ל-15 בחודש שלאחר תאריך העסקה. ניתן לשנות ידנית.</p>`;
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+function onExpenseAmountOrDateChange(){
+  // Critical safety net: if the user edits the top-level date/count/amount fields on an
+  // already-loaded expense (e.g. correcting a due date) without re-clicking "חשב תצוגה מקדימה",
+  // the change must still take effect on save - it must never be silently discarded.
+  const num = Math.max(1, parseInt(document.getElementById('f_expNum').value)||1);
+  if(expenseDraftPayments && expenseDraftPayments.length===1 && num===1){
+    // single payment - no ambiguity, sync the date directly onto the actual draft payment
+    const newDate = document.getElementById('f_expFirstDate').value;
+    if(newDate) expenseDraftPayments[0].date = newDate;
+  } else {
+    // payment count changed, or draft not yet built - force a full, fresh rebuild
+    expenseDraftPayments = null;
+  }
+  buildExpensePreview();
+}
+
+function setExpenseSplitType(t){
+  expenseSplitType = t;
+  document.querySelectorAll('.pill[data-esplit]').forEach(p=>p.classList.toggle('active', p.dataset.esplit===t));
+  buildExpensePreview();
+}
+
+function setExpenseAmountMode(mode){
+  expenseAmountMode = mode;
+  document.querySelectorAll('.pill[data-amode]').forEach(p=> p.classList.toggle('active', p.dataset.amode===mode));
+  const splitWrap = document.getElementById('splitTypeWrap');
+  if(splitWrap) splitWrap.style.display = mode==='perPayment' ? 'none' : 'flex';
+  const label = document.getElementById('f_expTotalLabel');
+  if(label) label.textContent = mode==='perPayment' ? 'סכום ההוצאה החודשית (ש"ח) *' : 'הסכום הכולל כולל מע"מ (ש"ח) *';
+  const dateLabel = document.getElementById('f_expFirstDateLabel');
+  if(dateLabel) dateLabel.textContent = mode==='perPayment' ? 'יום בחודש שההוצאה יורדת (תשלום ראשון) *' : 'מועד הפירעון הראשון *';
+  expenseDraftPayments = null;
+  buildExpensePreview();
+}
+
+function buildExpensePreview(forceType, existingPayments){
+  const type = document.getElementById('f_expType').value;
+  let firstDate = document.getElementById('f_expFirstDate').value || todayISO();
+  const enteredAmount = parseMoneyString(document.getElementById('f_expTotal').value);
+  const num = Math.max(1, parseInt(document.getElementById('f_expNum').value)||1);
+  const freq = Number(document.getElementById('f_expFreq').value)||1;
+  const splitType = forceType || expenseSplitType;
+  const wrap = document.getElementById('expensePreviewWrap');
+
+  if(enteredAmount<=0){ showToast('יש להזין סכום תקין', true); return; }
+
+  // credit card default date suggestion (only when creating new, first payment date left as txn date)
+  if(type==='כרטיסי אשראי' && !existingPayments){
+    const suggested = creditCardDefaultDate(firstDate);
+    // if user hasn't touched due date input separately, use suggested as the actual due date baseline
+    firstDate = suggested;
+  }
+
+  // "per payment" mode: the entered amount is the FIXED amount for each payment/check
+  // (e.g. "6 checks of 4,000 ש"ח each" instead of "24,000 ש"ח split into 6") - the true total is derived
+  const total = expenseAmountMode==='perPayment' ? round2(enteredAmount*num) : enteredAmount;
+
+  if(existingPayments){
+    expenseDraftPayments = existingPayments.map(p=>({...p}));
+  } else if(expenseAmountMode==='perPayment'){
+    expenseDraftPayments = Array.from({length:num},(_,i)=>({
+      paymentNumber:i+1, date: addMonths(firstDate, i*freq), amount: enteredAmount, status:'צפוי', paidAmount:0
+    }));
+  } else if(splitType==='equal'){
+    expenseDraftPayments = buildEqualSplit(total, num, firstDate, freq);
+  } else {
+    if(!expenseDraftPayments || expenseDraftPayments.length!==num){
+      expenseDraftPayments = buildEqualSplit(total, num, firstDate, freq);
+    }
+  }
+
+  const canEditRows = expenseAmountMode!=='perPayment' && splitType==='manual';
+  wrap.innerHTML = `
+    <div class="section-title" style="margin-top:0;">👁 תצוגה מקדימה</div>
+    ${type==='כרטיסי אשראי'?`<p style="font-size:12.5px;color:var(--blue);">מועד חיוב ברירת מחדל חושב אוטומטית ל-15 לחודש העוקב.</p>`:''}
+    ${expenseAmountMode==='perPayment'?`<p style="font-size:12.5px;color:var(--blue);">כל חודש יירשם תשלום בסך ${fmtILS(enteredAmount)} - סה"כ ${num} תשלומים = ${fmtILS(total)}.</p>`:''}
+    <div class="table-wrap">
+      <table><thead><tr><th>#</th><th>מועד פירעון</th><th>סכום</th><th>סטטוס</th></tr></thead>
+      <tbody>
+      ${expenseDraftPayments.map((p,i)=>`
+        <tr>
+          <td>${p.paymentNumber}</td>
+          <td>${canEditRows?`<input type="date" style="min-width:140px" value="${p.date}" onchange="updateExpenseDraftPayment(${i},'date',this.value)">`:fmtDateHe(p.date)}</td>
+          <td>${canEditRows?`<input ${moneyInputAttrs()} style="min-width:110px" value="${fmtMoneyInputValue(p.amount)}" onchange="updateExpenseDraftPayment(${i},'amount',this.value)">`:fmtILS(p.amount)}</td>
+          <td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td>
+        </tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div style="margin-top:8px;font-size:12.5px;color:var(--muted);">סה"כ פריסה: <b>${fmtILS(expenseDraftPayments.reduce((s,p)=>s+p.amount,0))}</b> מתוך <b>${fmtILS(total)}</b></div>
+  `;
+  document.getElementById('saveExpenseBtn').disabled=false;
+}
+
+function updateExpenseDraftPayment(i, field, val){
+  expenseDraftPayments[i][field] = field==='amount'? round2(parseMoneyString(val)) : val;
+  buildExpensePreview('manual', expenseDraftPayments);
+}
+
+function collectExtraFields(type){
+  if(type === "צ'קים בחוץ"){
+    return { firstCheckNum: document.getElementById('ex_firstCheckNum')?.value||'', bankName: document.getElementById('ex_bankName')?.value||'', accountNum: document.getElementById('ex_accountNum')?.value||'' };
+  }
+  if(type === 'כרטיסי אשראי'){
+    return { ccCompany: document.getElementById('ex_ccCompany')?.value||'', ccLast4: document.getElementById('ex_ccLast4')?.value||'' };
+  }
+  return {};
+}
+
+function saveExpense(editId){
+  const type = document.getElementById('f_expType').value;
+  const supplier = document.getElementById('f_supplier').value.trim();
+  const description = document.getElementById('f_description').value.trim();
+  const totalAmount = expenseDraftPayments ? round2(expenseDraftPayments.reduce((s,p)=>s+p.amount,0)) : parseMoneyString(document.getElementById('f_expTotal').value);
+  const paymentMethod = document.getElementById('f_payMethod').value;
+  const reference = document.getElementById('f_reference').value;
+  const notes = document.getElementById('f_expNotes').value;
+  const isRecurring = document.getElementById('f_isRecurring').checked;
+  const endDate = document.getElementById('f_endDate').value || null;
+  const frequency = Number(document.getElementById('f_expFreq').value)||1;
+  const extra = collectExtraFields(type);
+
+  if(!supplier || totalAmount<=0 || !expenseDraftPayments){
+    showToast('יש למלא את כל השדות החיוניים ולחשב תצוגה מקדימה', true); return;
+  }
+
+  // duplicate-ish detection: same supplier+amount+date
+  const potentialDup = DB.expenses.find(e=> e.id!==editId && e.supplier===supplier && e.totalAmount===totalAmount && e.payments[0] && expenseDraftPayments[0] && e.payments[0].date===expenseDraftPayments[0].date);
+
+  const doSave = ()=>{
+    let payments = expenseDraftPayments.map(p=>({...p, id:p.id||uid('epay')}));
+    // if recurring, extend with generated future payments beyond what's manually specified
+    if(isRecurring && payments.length===1){
+      payments = generateRecurringPayments(totalAmount, payments[0].date, frequency, endDate, 24);
+      payments = payments.map(p=>({...p, id:uid('epay')}));
+    }
+    if(editId){
+      const exObj = DB.expenses.find(e=>e.id===editId);
+      Object.assign(exObj, {type, supplier, description, totalAmount, numPayments:payments.length, frequency, paymentMethod, reference, notes, isRecurring, endDate, extra, payments, updatedAt: nowISO()});
+      logAudit('expense', editId, 'update');
+    } else {
+      const newEx = {
+        id: uid('exp'), type, supplier, description, totalAmount, numPayments: payments.length,
+        frequency, paymentMethod, reference, notes, isRecurring, endDate, extra, payments,
+        createdBy: DB.currentUser, createdAt: nowISO(), updatedAt: nowISO()
+      };
+      DB.expenses.push(newEx);
+      logAudit('expense', newEx.id, 'create');
+      if(supplier && !DB.suppliers.find(s=>s.name===supplier)) DB.suppliers.push({id:uid('sup'), name:supplier});
+    }
+    saveDB();
+    showToast('הנתונים נשמרו בהצלחה');
+    const firstPaymentYear = payments.length? Number(payments[0].date.slice(0,4)) : new Date().getFullYear();
+    navigateTo('expense-table', {year: firstPaymentYear});
+  };
+
+  if(potentialDup){
+    confirmDialog(`נמצאה רשומת הוצאה דומה (אותו ספק, סכום ותאריך). האם ברצונך להמשיך לשמור בכל זאת?`, doSave);
+  } else {
+    doSave();
+  }
+}
+/* =========================================================================
+   טבלת הוצאות
+   ========================================================================= */
+function renderExpenseTableView(el){
+  const st = viewState;
+  const year = st.year || new Date().getFullYear();
+  const selMonth = st.month || null;
+  const filters = st.filters || {};
+
+  const yearMonths = Array.from({length:12},(_,i)=> year+'-'+String(i+1).padStart(2,'0'));
+  const monthCards = yearMonths.map(mk=>{
+    const pays = allExpensePayments().filter(p=>monthKey(p.date)===mk);
+    const expected = pays.reduce((s,p)=>s+p.amount,0);
+    const actual = pays.reduce((s,p)=> s+(p.status==='שולם'?p.amount:(p.paidAmount||0)),0);
+    const remaining = round2(expected-actual);
+    const late = pays.filter(p=>p.status==='באיחור').length;
+    return {mk, count: pays.length, expected, actual, remaining, late};
+  });
+
+  const allPays = allExpensePayments();
+  let rows = selMonth ? allPays.filter(p=>monthKey(p.date)===selMonth) : allPays.filter(p=>p.date.slice(0,4)===String(year));
+  if(filters.type) rows = rows.filter(p=>p.type===filters.type);
+  if(filters.supplier) rows = rows.filter(p=>p.supplier===filters.supplier);
+  if(filters.status) rows = rows.filter(p=>p.status===filters.status);
+  if(filters.paymentMethod) rows = rows.filter(p=>p.paymentMethod===filters.paymentMethod);
+  if(filters.search){
+    const q = filters.search.toLowerCase();
+    rows = rows.filter(p=> (p.supplier||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.reference||'').toLowerCase().includes(q));
+  }
+  rows.sort((a,b)=> a.date<b.date?1:-1);
+
+  const byType = {};
+  rows.forEach(p=>{ byType[p.type]=(byType[p.type]||0)+p.amount; });
+
+  const suppliers = [...new Set(DB.expenses.map(e=>e.supplier))];
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        <div class="year-switch"><button onclick="changeExpenseYear(-1)">›</button><span>${year}</span><button onclick="changeExpenseYear(1)">‹</button></div>
+        <button class="btn btn-red btn-sm" onclick="navigateTo('expense-entry')">+ הוצאה חדשה</button>
+      </div>
+      <div class="months-strip">
+        <div class="month-chip ${!selMonth?'active':''}" onclick="selectExpenseMonth(null)">כל השנה</div>
+        ${monthCards.map(m=>`<div class="month-chip ${selMonth===m.mk?'active':''}" onclick="selectExpenseMonth('${m.mk}')">${HE_MONTHS[Number(m.mk.split('-')[1])-1]}${m.late?' 🔴':''}</div>`).join('')}
+      </div>
+      <div class="grid4">
+        ${monthCards.map(m=>`
+          <div class="month-card ${m.remaining>0?'zero':'pos'}" style="cursor:pointer;padding:12px;" onclick="selectExpenseMonth('${m.mk}')">
+            <div class="mhead"><div class="mname" style="font-size:13px;">${HE_MONTHS[Number(m.mk.split('-')[1])-1]}</div>${m.late?`<div class="tag neg">${m.late} באיחור</div>`:''}</div>
+            <div style="font-size:12px;color:var(--muted);">צפוי: <b style="color:var(--ink)">${fmtILS(m.expected)}</b></div>
+            <div style="font-size:12px;color:var(--muted);">שולם: <b style="color:var(--red)">${fmtILS(m.actual)}</b></div>
+            <div style="font-size:12px;color:var(--muted);">יתרה: <b style="color:${m.remaining>0?'var(--orange)':'var(--muted)'}">${fmtILS(m.remaining)}</b></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">${m.count} הוצאות</div>
+          </div>`).join('')}
+      </div>
+      ${Object.keys(byType).length? `
+        <div class="section-title">חלוקה לפי סוגי הוצאה</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([t,amt])=>`
+            <div style="background:${expenseTypeColor(t)}20;border:1px solid ${expenseTypeColor(t)}66;padding:8px 14px;border-radius:10px;font-size:12.5px;">${expenseTypeBadge(t)}: <b>${fmtILS(amt)}</b></div>`).join('')}
+        </div>`:''}
+    </div>
+
+    <div class="card chart-card">
+      <div class="section-title" style="margin-top:0;">📊 גרף הכנסות והוצאות לפי תאריך (רק תאריכים עם תנועה)</div>
+      ${(()=>{
+        const incScope = selMonth ? allIncomePayments().filter(p=>monthKey(p.date)===selMonth) : allIncomePayments().filter(p=>p.date.slice(0,4)===String(year));
+        const byDate = {};
+        rows.forEach(p=>{
+          byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
+          byDate[p.date].expense += p.amount;
+          byDate[p.date].expenseDetail.push({label:`${p.supplier} (${p.type})`, amount:p.amount});
+        });
+        incScope.forEach(p=>{
+          byDate[p.date] = byDate[p.date]||{income:0,expense:0,incomeDetail:[],expenseDetail:[]};
+          byDate[p.date].income += p.amount;
+          byDate[p.date].incomeDetail.push({label:`${p.isCredit?'🟣 זיכוי - ':''}${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount});
+        });
+        const entries = Object.keys(byDate).sort().map(d=>({label: fmtDateShort(d), income: byDate[d].income, expense: byDate[d].expense, incomeDetail: byDate[d].incomeDetail, expenseDetail: byDate[d].expenseDetail, expenseStack: groupExpensesByType(rows.filter(p=>p.date===d))}));
+        return renderBarChart(entries, [{key:'income', color:'var(--green)', name:'הכנסות'},{key:'expense', color:'var(--red)', name:'הוצאות'}]);
+      })()}
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <div class="pill-toggle">
+          <div class="pill ${(st.expenseView||'byPayment')==='byPayment'?'active':''}" onclick="viewState.expenseView='byPayment'; renderCurrentView();">לפי תשלום</div>
+          <div class="pill ${st.expenseView==='byExpense'?'active':''}" onclick="viewState.expenseView='byExpense'; renderCurrentView();">📋 לפי הוצאה (כולל תשלומים)</div>
+        </div>
+        <div class="search-box"><input type="text" placeholder="חיפוש לפי ספק, תיאור, אסמכתה..." value="${filters.search||''}" oninput="setExpenseFilter('search',this.value)"><span class="ic">🔍</span></div>
+        <div class="filters">
+          <select onchange="setExpenseFilter('type',this.value)"><option value="">כל הסוגים</option>${DB.expenseCategories.map(t=>`<option ${filters.type===t?'selected':''}>${t}</option>`).join('')}</select>
+          <select onchange="setExpenseFilter('supplier',this.value)"><option value="">כל הספקים</option>${suppliers.map(s=>`<option ${filters.supplier===s?'selected':''}>${s}</option>`).join('')}</select>
+          <select onchange="setExpenseFilter('status',this.value)"><option value="">כל הסטטוסים</option>${STATUSES.map(s=>`<option ${filters.status===s?'selected':''}>${s}</option>`).join('')}</select>
+          <button class="btn btn-ghost btn-sm" onclick="clearExpenseFilters()">נקה סינון</button>
+        </div>
+      </div>
+      ${st.expenseView==='byExpense' ? (()=>{
+        const groups = {};
+        rows.forEach(p=>{
+          if(!groups[p.expenseId]) groups[p.expenseId] = { expenseId:p.expenseId, supplier:p.supplier, type:p.type, description:p.description, paymentMethod:p.paymentMethod, amount:0, paid:0, count:0 };
+          const g = groups[p.expenseId];
+          g.amount = round2(g.amount + p.amount);
+          g.paid = round2(g.paid + (p.status==='שולם'?p.amount:(p.paidAmount||0)));
+          g.count++;
+        });
+        const glist = Object.values(groups);
+        return `<div class="table-wrap">
+          <table><thead><tr>
+            <th>סוג</th><th>ספק</th><th>תיאור</th><th>תשלומים בטווח זה</th><th>סה"כ בטווח</th><th>שולם</th><th>יתרה</th><th>אמצעי תשלום</th><th>פעולות</th>
+          </tr></thead>
+          <tbody>
+          ${glist.length? glist.map(g=>{
+            const ex = findExpense(g.expenseId);
+            const totalInstallments = ex ? ex.payments.length : g.count;
+            const remaining = round2(g.amount-g.paid);
+            return `<tr>
+              <td>${expenseTypeBadge(g.type)}</td><td>${g.supplier}</td><td>${g.description||'-'}</td>
+              <td>${totalInstallments>1?`<span style="background:#2563a8;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">📅 ${totalInstallments} תשלומים</span>`:'תשלום בודד'}</td>
+              <td><b>${fmtILS(g.amount)}</b></td><td>${fmtILS(g.paid)}</td><td>${fmtILS(remaining)}</td><td>${g.paymentMethod||'-'}</td>
+              <td><div class="rowbtns">
+                <button class="iconsm" title="עריכה" onclick="editExpense('${g.expenseId}')">✏️</button>
+                <button class="iconsm" title="מחיקת ההוצאה כולה (כל התשלומים)" onclick="deleteWholeExpense('${g.expenseId}')">🧹</button>
+              </div></td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="9"><div class="empty-state"><div class="ic">📭</div>לא נמצאו רשומות תואמות</div></td></tr>`}
+          </tbody></table>
+        </div>`;
+      })() : `
+      <div class="table-wrap">
+        <table><thead><tr>
+          <th>סוג</th><th>ספק</th><th>תיאור</th><th>מועד פירעון</th><th>סכום</th><th>סטטוס</th><th>שולם בפועל</th><th>יתרה</th><th>אמצעי תשלום</th><th>פעולות</th>
+        </tr></thead>
+        <tbody>
+        ${rows.length? rows.map(p=>{
+          const paid = p.status==='שולם'?p.amount:(p.paidAmount||0);
+          const remaining = round2(p.amount-paid);
+          return `<tr>
+            <td>${expenseTypeBadge(p.type)}</td><td>${p.supplier}</td><td>${p.description||'-'}</td><td>${fmtDateHe(p.date)}</td>
+            <td><b>${fmtILS(p.amount)}</b></td><td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td>
+            <td>${fmtILS(paid)}</td><td>${fmtILS(remaining)}</td><td>${p.paymentMethod||'-'}</td>
+            <td><div class="rowbtns">
+              <button class="iconsm" title="צפייה" onclick="viewExpensePayment('${p.expenseId}','${p.id}')">👁</button>
+              <button class="iconsm" title="עריכה" onclick="editExpense('${p.expenseId}')">✏️</button>
+              <button class="iconsm" title="סימון כשולם" onclick="markExpensePaid('${p.expenseId}','${p.id}')">✅</button>
+              <button class="iconsm" title="דחיית מועד/עריכת סכום" onclick="postponeExpensePayment('${p.expenseId}','${p.id}')">⏩</button>
+              <button class="iconsm" title="מחיקת תשלום זה בלבד" onclick="deleteExpensePayment('${p.expenseId}','${p.id}')">🗑</button>
+              <button class="iconsm" title="מחיקת ההוצאה כולה (כל התשלומים)" onclick="deleteWholeExpense('${p.expenseId}')">🧹</button>
+            </div></td>
+          </tr>`;
+        }).join('') : `<tr><td colspan="10"><div class="empty-state"><div class="ic">📭</div>לא נמצאו רשומות תואמות</div></td></tr>`}
+        </tbody></table>
+      </div>`}
+    </div>
+  `;
+}
+
+function changeExpenseYear(delta){ viewState.year=(viewState.year||new Date().getFullYear())+delta; renderCurrentView(); }
+function selectExpenseMonth(mk){ viewState.month=mk; renderCurrentView(); }
+function setExpenseFilter(k,v){ viewState.filters=viewState.filters||{}; viewState.filters[k]=v; renderCurrentView(); document.querySelector('.search-box input')?.focus(); }
+function clearExpenseFilters(){ viewState.filters={}; renderCurrentView(); }
+
+function findExpense(id){ return DB.expenses.find(e=>e.id===id); }
+
+function viewExpensePayment(expId, payId){
+  const ex = findExpense(expId); const p = ex.payments.find(x=>x.id===payId);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+      <div class="modal" style="max-width:480px;">
+        <div class="modal-head"><h3>👁 פרטי הוצאה</h3><button class="closeX" onclick="closeModal()">✕</button></div>
+        <div class="modal-body">
+          <p><b>סוג:</b> ${ex.type}</p><p><b>ספק:</b> ${ex.supplier}</p>
+          <p><b>תיאור:</b> ${ex.description||'-'}</p>
+          <p><b>סכום כולל:</b> ${fmtILS(ex.totalAmount)}</p>
+          <p><b>תשלום מספר:</b> ${p.paymentNumber} מתוך ${ex.numPayments}</p>
+          <p><b>מועד פירעון:</b> ${fmtDateHe(p.date)}</p><p><b>סכום:</b> ${fmtILS(p.amount)}</p>
+          <p><b>סטטוס:</b> ${p.status}</p><p><b>אמצעי תשלום:</b> ${ex.paymentMethod||'-'}</p>
+          <p><b>אסמכתה:</b> ${ex.reference||'-'}</p><p><b>הערות:</b> ${ex.notes||'-'}</p>
+          ${ex.extra&&ex.extra.bankName?`<p><b>בנק:</b> ${ex.extra.bankName}</p>`:''}
+          ${ex.extra&&ex.extra.ccCompany?`<p><b>חברת אשראי:</b> ${ex.extra.ccCompany} ****${ex.extra.ccLast4||''}</p>`:''}
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">סגור</button></div>
+      </div>
+    </div>`;
+}
+
+function editExpense(id){
+  const ex = findExpense(id);
+  currentView='expense-entry';
+  renderSidenav(); renderTopbar();
+  document.getElementById('viewsSlot').innerHTML = `<div class="view active" id="view-expense-entry"></div>`;
+  renderExpenseEntryView(document.getElementById('view-expense-entry'), ex);
+}
+
+function markExpensePaid(expId, payId){
+  const ex = findExpense(expId); const p = ex.payments.find(x=>x.id===payId);
+  const old=p.status; p.status='שולם'; p.paidAmount=p.amount; ex.updatedAt=nowISO();
+  logAudit('expensePayment', payId, 'update', 'status', old, 'שולם');
+  saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+
+function postponeExpensePayment(expId, payId){
+  const ex = findExpense(expId); const p = ex.payments.find(x=>x.id===payId);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg"><div class="modal" style="max-width:380px;">
+      <div class="modal-head"><h3>⏩ עריכת תשלום</h3><button class="closeX" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="field"><label>מועד פירעון</label><input type="date" id="newExpDateInput" value="${p.date}"></div>
+        <div class="field"><label>סכום (ש"ח) - ניתן לתקן במידת הצורך</label><input ${moneyInputAttrs()} id="newExpAmountInput" value="${fmtMoneyInputValue(p.amount)}"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+        <button class="btn btn-blue" onclick="confirmExpensePostpone('${expId}','${payId}')">שמור</button>
+      </div>
+    </div></div>`;
+}
+function confirmExpensePostpone(expId, payId){
+  const ex = findExpense(expId); const p = ex.payments.find(x=>x.id===payId);
+  const oldDate=p.date, oldAmount=p.amount;
+  const newDate = document.getElementById('newExpDateInput').value;
+  const newAmount = round2(parseMoneyString(document.getElementById('newExpAmountInput').value)||p.amount);
+  if(newDate!==oldDate){ p.date=newDate; p.status='נדחה'; logAudit('expensePayment', payId, 'update', 'date', oldDate, newDate); }
+  if(newAmount!==oldAmount){ p.amount=newAmount; logAudit('expensePayment', payId, 'update', 'amount', oldAmount, newAmount); }
+  ex.updatedAt=nowISO();
+  saveDB(); closeModal(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+
+function deleteExpensePayment(expId, payId){
+  confirmDialog('האם אתה בטוח שברצונך למחוק רשומה זו?', ()=>{
+    const ex = findExpense(expId);
+    const idx = ex.payments.findIndex(x=>x.id===payId);
+    const [removed] = ex.payments.splice(idx,1);
+    DB.recycleBin.push({id:uid('rb'), entity:'expensePayment', record:{...removed, expenseId:expId}, deletedAt:nowISO(), deletedBy:DB.currentUser});
+    logAudit('expensePayment', payId, 'delete');
+    if(ex.payments.length===0) DB.expenses = DB.expenses.filter(e=>e.id!==expId);
+    saveDB(); showToast('הרשומה נמחקה'); renderCurrentView();
+  });
+}
+
+function deleteWholeExpense(expId){
+  confirmDialog('האם אתה בטוח שברצונך למחוק את ההוצאה כולה, כולל כל התשלומים העתידיים שלה?', ()=>{
+    const ex = findExpense(expId);
+    if(!ex) return;
+    DB.recycleBin.push({id:uid('rb'), entity:'expense', record:ex, deletedAt:nowISO(), deletedBy:DB.currentUser});
+    logAudit('expense', expId, 'delete');
+    DB.expenses = DB.expenses.filter(e=>e.id!==expId);
+    saveDB(); showToast('ההוצאה נמחקה'); renderCurrentView();
+  });
+}
+/* =========================================================================
+   תזרים חודשי | תחזית 4 חודשים | יתרת פתיחה
+   ========================================================================= */
+function renderMonthlyCashflowView(el){
+  const mk = viewState.month || todayMonthKey();
+  const mode = viewState.mode || 'expected';
+  const stats = monthStats(mk, mode);
+  const days = dailyCashflow(mk, mode);
+  const opening = days.length? days[0].openBal : 0;
+  const closing = days.length? days[days.length-1].closeBal : 0;
+  const threshold = Number(DB.warningThreshold||0);
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        <div class="year-switch"><button onclick="changeCashflowMonth(-1)">›</button><span>${monthLabel(mk)}</span><button onclick="changeCashflowMonth(1)">‹</button></div>
+        <div class="pill-toggle">
+          <div class="pill ${mode==='expected'?'active':''}" onclick="setCashflowMode('expected')">תזרים צפוי</div>
+          <div class="pill ${mode==='actual'?'active':''}" onclick="setCashflowMode('actual')">תזרים בפועל</div>
+        </div>
+      </div>
+      <div class="grid4">
+        <div class="card" style="box-shadow:none;border:1px solid ${days.hasBankOverride?'#8b5cf6':'var(--line)'};padding:12px;${days.hasBankOverride?'background:#f5f0ff;':''}">
+          <div style="font-size:12px;color:var(--muted)">יתרת פתיחה לחודש ${days.hasBankOverride?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-right:4px;">🏦 מהבנק</span>':''}</div>
+          <div style="font-family:Rubik;font-weight:700;font-size:17px;${days.hasBankOverride?'color:#6b3fa0;':''}">${fmtILS(opening)}</div>
+        </div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--line);padding:12px;"><div style="font-size:12px;color:var(--muted)">סך הכנסות</div><div style="font-family:Rubik;font-weight:700;font-size:17px;color:var(--green)">${fmtILS(stats.incomeTotal)}</div></div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--line);padding:12px;"><div style="font-size:12px;color:var(--muted)">סך הוצאות</div><div style="font-family:Rubik;font-weight:700;font-size:17px;color:var(--red)">${fmtILS(stats.expenseTotal)}</div></div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--line);padding:12px;"><div style="font-size:12px;color:var(--muted)">יתרת סגירה</div><div style="font-family:Rubik;font-weight:700;font-size:17px;">${fmtILS(closing)}</div></div>
+      </div>
+      <div class="mini-cut" style="margin-top:14px;">
+        <span>יתרה עד ה-15: <b style="color:${stats.balance15>=0?'var(--green)':'var(--red)'}">${fmtILS(stats.balance15)}</b></span>
+        <span>יתרה לסוף החודש: <b style="color:${stats.balance>=0?'var(--green)':'var(--red)'}">${fmtILS(stats.balance)}</b></span>
+      </div>
+    </div>
+
+    ${days.hasBankOverride ? `<div class="card" style="margin-bottom:16px;background:#f5f0ff;border:1px solid #8b5cf6;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:22px;">🏦</span>
+        <div>
+          <b style="color:#6b3fa0;">יתרת פתיחה לחודש זה הוזנה ידנית מהבנק: ${fmtILS(days.bankOverrideAmount)}</b>
+          ${days.bankOverrideNotes ? `<div style="font-size:12px;color:#6b3fa0;margin-top:2px;">${escapeHtml(days.bankOverrideNotes)}</div>` : ''}
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">חישוב התזרים לחודש זה מתחיל מהסכום הזה, ולא מהחישוב המצטבר הרגיל.</div>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <div class="card chart-card">
+      <div class="section-title" style="margin-top:0;">📊 גרף תזרים יומי (רק ימים עם תנועה)</div>
+      ${renderBarChart(
+        days.filter(d=> d.incSum || d.expSum).map(d=>({
+          label: fmtDateShort(d.iso), income: d.incSum, expense: d.expSum,
+          incomeDetail: d.incomeItems.map(p=>({label:`${p.isCredit?'🟣 זיכוי - ':''}${p.customer} (חשבונית ${p.invoiceNumber})`, amount:p.amount})),
+          expenseDetail: d.expenseItems.map(p=>({label:`${p.supplier} (${p.type})`, amount:p.amount})),
+          expenseStack: groupExpensesByType(d.expenseItems)
+        })),
+        [{key:'income', color:'var(--green)', name:'הכנסות'},{key:'expense', color:'var(--red)', name:'הוצאות'}]
+      )}
+    </div>
+
+    <div class="card" style="margin-top:16px;margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;">📋 טבלת תזרים יומי מלאה - ${monthLabel(mk)}</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>תאריך</th><th>הכנסות</th><th>הוצאות</th><th>תזרים יומי נטו</th><th>יתרה מצטברת</th></tr></thead>
+          <tbody>
+            <tr style="background:${days.hasBankOverride?'#f5f0ff':'#eef2f7'};">
+              <td colspan="4" style="font-weight:700;color:${days.hasBankOverride?'#6b3fa0':'#0e3a5f'};">
+                יתרת פתיחה לתחילת החודש
+                ${days.hasBankOverride ? '<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-right:6px;">🏦 מהבנק</span>' : '<span style="color:var(--muted);font-weight:400;font-size:11.5px;">(מהחודש הקודם)</span>'}
+              </td>
+              <td style="font-weight:700;color:${days.hasBankOverride?'#6b3fa0':'#0e3a5f'};">${fmtILS(opening)}</td>
+            </tr>
+            ${days.map(d=>{
+              const active = d.incSum || d.expSum;
+              return `<tr style="${active?'':'color:var(--muted);'}">
+                <td>${fmtDateHe(d.iso)}</td>
+                <td style="${d.incSum?'color:var(--green);font-weight:600;':''}">${d.incSum? fmtILS(d.incSum) : '—'}</td>
+                <td style="${d.expSum?'color:var(--red);font-weight:600;':''}">${d.expSum? fmtILS(d.expSum) : '—'}</td>
+                <td style="${active? (d.net>=0?'color:var(--green);':'color:var(--red);') : ''}">${active? fmtILS(d.net) : '—'}</td>
+                <td><b style="color:${d.closeBal>=0?'inherit':'var(--red)'}">${fmtILS(d.closeBal)}</b></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">🟢 פירוט הכנסות החודש (${stats.incomePayments.length})</div>
+        <div class="table-wrap">
+          <table><thead><tr><th>תאריך</th><th>לקוח</th><th>מס׳ חשבונית</th><th>סכום</th><th>סטטוס</th></tr></thead>
+          <tbody>
+          ${stats.incomePayments.length? stats.incomePayments.slice().sort((a,b)=>a.date<b.date?-1:1).map(p=>`
+            <tr ${p.isCredit?'style="background:#f3e8ff;"':''}><td>${fmtDateHe(p.date)}</td><td>${p.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-left:5px;">🟣 זיכוי</span>':''}${p.customer}</td><td>${p.invoiceNumber}</td><td style="color:${p.isCredit?'#8b5cf6':'var(--green)'}"><b>${fmtILS(p.amount)}</b></td><td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td></tr>
+          `).join('') : `<tr><td colspan="5"><div class="empty-state">אין הכנסות בחודש זה</div></td></tr>`}
+          </tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">🔴 פירוט הוצאות החודש (${stats.expensePayments.length})</div>
+        <div class="table-wrap">
+          <table><thead><tr><th>תאריך</th><th>ספק</th><th>סוג</th><th>סכום</th><th>סטטוס</th></tr></thead>
+          <tbody>
+          ${stats.expensePayments.length? stats.expensePayments.slice().sort((a,b)=>a.date<b.date?-1:1).map(p=>`
+            <tr><td>${fmtDateHe(p.date)}</td><td>${p.supplier}</td><td>${expenseTypeBadge(p.type)}</td><td style="color:var(--red)"><b>${fmtILS(p.amount)}</b></td><td><span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></td></tr>
+          `).join('') : `<tr><td colspan="5"><div class="empty-state">אין הוצאות בחודש זה</div></td></tr>`}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">📅 לוח תזרים יומי</div>
+      <div class="day-row" style="font-weight:700;font-size:11.5px;color:var(--muted);background:var(--steel-100);border-radius:8px;">
+        <div>תאריך</div><div>הכנסות</div><div>הוצאות</div><div>תנועה נטו</div><div>יתרה מצטברת</div>
+      </div>
+      ${days.map(d=>{
+        const cls = d.closeBal<0?'neg':(d.closeBal<threshold?'warn':'');
+        const dow = HE_DAYS[parseISO(d.iso).getDay()];
+        return `
+        <div class="day-row ${cls}" onclick="viewDayDetail('${d.iso}','${mk}','${mode}')">
+          <div>${d.day} (${dow})</div>
+          <div style="color:var(--green)">${d.incSum? fmtILS(d.incSum):'-'}</div>
+          <div style="color:var(--red)">${d.expSum? fmtILS(d.expSum):'-'}</div>
+          <div style="color:${d.net>=0?'var(--green)':'var(--red)'}">${fmtILS(d.net)}</div>
+          <div><b style="color:${d.closeBal<0?'var(--red)':(d.closeBal<threshold?'var(--orange)':'var(--ink)')}">${fmtILS(d.closeBal)}</b></div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+function changeCashflowMonth(delta){ viewState.month = addMonths((viewState.month||todayMonthKey())+'-01', delta).slice(0,7); renderCurrentView(); }
+function setCashflowMode(m){ viewState.mode=m; renderCurrentView(); }
+
+function viewDayDetail(iso, mk, mode){
+  const days = dailyCashflow(mk, mode);
+  const d = days.find(x=>x.iso===iso);
+  document.getElementById('modal-root').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <div class="modal-head"><h3>📅 ${fmtDateHe(iso)}</h3><button class="closeX" onclick="closeModal()">✕</button></div>
+        <div class="modal-body">
+          <p><b>יתרת פתיחה יומית:</b> ${fmtILS(d.openBal)} · <b>תנועה נטו:</b> ${fmtILS(d.net)} · <b>יתרה מצטברת:</b> ${fmtILS(d.closeBal)}</p>
+          <div class="section-title">הכנסות (${d.incomeItems.length})</div>
+          ${d.incomeItems.length? d.incomeItems.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;${p.isCredit?'background:#f3e8ff;':''}">${p.isCredit?'<span style="background:#8b5cf6;color:#fff;border-radius:6px;padding:1px 6px;font-size:10px;margin-left:5px;">🟣 זיכוי</span>':''}${p.customer} · חשבונית ${p.invoiceNumber} · <b style="color:${p.isCredit?'#8b5cf6':'var(--green)'}">${fmtILS(p.amount)}</b> · <span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></div>`).join('') : '<p style="color:var(--muted);font-size:13px;">אין הכנסות ביום זה</p>'}
+          <div class="section-title">הוצאות (${d.expenseItems.length})</div>
+          ${d.expenseItems.length? d.expenseItems.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;">${p.supplier} · ${p.type} · <b style="color:var(--red)">${fmtILS(p.amount)}</b> · <span class="status-badge ${STATUS_CLASS[p.status]}">${p.status}</span></div>`).join('') : '<p style="color:var(--muted);font-size:13px;">אין הוצאות ביום זה</p>'}
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">סגור</button></div>
+      </div>
+    </div>`;
+}
+
+/* ---------- forecast (expanded dashboard) ---------- */
+function renderForecastView(el){
+  const months = monthsAhead(4);
+  const stats = months.map(mk=> monthStats(mk,'expected'));
+  const refMax = Math.max(1, ...stats.map(s=>[s.incomeTotal, s.expenseTotal]).reduce((a,b)=>a.concat(b),[]));
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 style="margin:0 0 6px;font-size:15px;">תחזית תזרים - 4 חודשים קדימה</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0;">תמונת מצב מלאה הכוללת יתרות מצטברות, פערי אמצע חודש והתפלגות סטטוסים.</p>
+    </div>
+    <div class="grid2">
+      ${months.map((mk,i)=>{
+        const s = stats[i];
+        const cum = cumulativeBalanceThroughMonth(mk,'expected');
+        return `
+        <div class="card">
+          <div class="mhead"><div class="mname">${monthLabel(mk)}</div><div class="tag ${s.balance>0?'pos':(s.balance<0?'neg':'zero')}">${s.balance>0?'רווח':(s.balance<0?'הפסד':'איזון')}</div></div>
+          <div class="gauges-row">${renderCombinedGaugeBlock(s.incomeTotal, s.expenseTotal, refMax)}</div>
+          <table style="margin-top:10px;"><tbody>
+            <tr><td>יתרה חודשית</td><td><b style="color:${s.balance>=0?'var(--green)':'var(--red)'}">${fmtILS(s.balance)}</b></td></tr>
+            <tr><td>יתרה מצטברת עד סוף החודש</td><td><b>${fmtILS(cum)}</b></td></tr>
+            <tr><td>יתרה עד ה-15 בחודש</td><td><b style="color:${s.balance15>=0?'var(--green)':'var(--red)'}">${fmtILS(s.balance15)}</b></td></tr>
+            <tr><td>מס' הכנסות רשומות</td><td>${s.countIncome}</td></tr>
+            <tr><td>מס' הוצאות רשומות</td><td>${s.countExpense}</td></tr>
+            <tr><td>תשלומים באיחור</td><td>${s.lateIncome+s.lateExpense>0?`<span style="color:var(--red)">${s.lateIncome+s.lateExpense}</span>`:'0'}</td></tr>
+          </tbody></table>
+          <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="navigateTo('monthly-cashflow',{month:'${mk}'})">לצפייה יומית ←</button>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+/* ---------- opening balance ---------- */
+function renderBankBalanceView(el){
+  const list = (DB.monthlyBankBalances||[]).slice().sort((a,b)=> b.month<a.month?-1:(b.month>a.month?1:0));
+  const editMonth = viewState.editBankBalanceMonth;
+  const editing = editMonth ? list.find(o=>o.month===editMonth) : null;
+  el.innerHTML = `
+    <div class="card" style="max-width:560px;margin-bottom:16px;">
+      <div class="section-title" style="margin-top:0;">🏛️ קביעת יתרת בנק לתחילת חודש</div>
+      <p class="hint">היתרה שתזין תמיד מתייחסת ל-1 לחודש שנבחר (חיובית או שלילית - עם מינוס), ומחליפה את החישוב המצטבר האוטומטי לאותו חודש ואילך, עד ליתרה הבאה שתוזן.</p>
+      <div class="form-grid">
+        <div class="field"><label>חודש</label><input type="month" id="bb_month" value="${editing?editing.month:(viewState.month||todayMonthKey())}"></div>
+        <div class="field"><label>יתרת חשבון הבנק ב-1 לחודש (ש"ח)</label><input ${moneyInputAttrs()} id="bb_amount" value="${editing?fmtMoneyInputValue(editing.amount):''}"></div>
+      </div>
+      <div class="field"><label>הערות</label><textarea id="bb_notes" rows="2">${editing?escapeHtml(editing.notes||''):''}</textarea></div>
+      <button class="btn btn-green" onclick="saveMonthlyBankBalance()">💾 שמור יתרה לחודש</button>
+      ${editing? `<button class="btn btn-ghost" onclick="viewState.editBankBalanceMonth=null; renderCurrentView();" style="margin-right:8px;">ביטול עריכה</button>`:''}
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">היסטוריית יתרות בנק לפי חודש</div>
+      ${list.length? `<div class="table-wrap"><table><thead><tr><th>חודש</th><th>יתרה ב-1 לחודש</th><th>הערות</th><th></th></tr></thead>
+        <tbody>${list.map(o=>`<tr>
+          <td>${monthLabel(o.month)}</td>
+          <td style="color:${o.amount<0?'var(--red)':'var(--green)'}"><b>${fmtILS(o.amount)}</b></td>
+          <td>${escapeHtml(o.notes||'-')}</td>
+          <td style="white-space:nowrap;"><button class="btn btn-sm" onclick="viewState.editBankBalanceMonth='${o.month}'; renderCurrentView();">✏️ עריכה</button> <button class="btn btn-sm" onclick="deleteMonthlyBankBalance('${o.month}')">🗑</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>` : `<div class="empty-state">עדיין לא נקבעו יתרות בנק חודשיות</div>`}
+    </div>
+  `;
+}
+function saveMonthlyBankBalance(){
+  const month = document.getElementById('bb_month').value;
+  const amount = parseMoneyString(document.getElementById('bb_amount').value);
+  const notes = document.getElementById('bb_notes').value;
+  if(!month){ showToast('נא לבחור חודש', true); return; }
+  DB.monthlyBankBalances = DB.monthlyBankBalances || [];
+  const existingIdx = DB.monthlyBankBalances.findIndex(o=>o.month===month);
+  if(existingIdx>=0){
+    DB.monthlyBankBalances[existingIdx] = {...DB.monthlyBankBalances[existingIdx], amount, notes};
+  } else {
+    DB.monthlyBankBalances.push({id:uid('bb'), month, amount, notes});
+  }
+  logAudit('monthlyBankBalance', month, 'update');
+  viewState.editBankBalanceMonth = null;
+  saveDB(); showToast('יתרת הבנק לחודש נשמרה בהצלחה'); renderCurrentView();
+}
+function deleteMonthlyBankBalance(month){
+  confirmDialog('למחוק את יתרת הבנק שנקבעה ל'+monthLabel(month)+'?', ()=>{
+    const removed = (DB.monthlyBankBalances||[]).find(o=>o.month===month);
+    DB.monthlyBankBalances = (DB.monthlyBankBalances||[]).filter(o=>o.month!==month);
+    if(removed) DB.recycleBin.push({id:uid('rb'), entity:'monthlyBankBalance', record:removed, deletedAt:nowISO(), deletedBy:DB.currentUser});
+    logAudit('monthlyBankBalance', month, 'delete');
+    saveDB(); showToast('נמחק בהצלחה'); renderCurrentView();
+  });
+}
+function renderOpeningBalanceView(el){
+  const ob = getOpeningBalance();
+  el.innerHTML = `
+    <div class="card" style="max-width:560px;">
+      <div class="section-title" style="margin-top:0;">🏦 יתרת פתיחה נוכחית</div>
+      <div class="form-grid">
+        <div class="field"><label>יתרת פתיחה (ש"ח)</label><input ${moneyInputAttrs()} id="ob_amount" value="${fmtMoneyInputValue(ob.amount)}"></div>
+        <div class="field"><label>תאריך היתרה</label><input type="date" id="ob_date" value="${ob.date}"></div>
+        <div class="field"><label>שם החשבון</label><input id="ob_name" value="${ob.accountName||''}"></div>
+        <div class="field"><label>סף אזהרה תזרימי (ש"ח)</label><input ${moneyInputAttrs()} id="ob_threshold" value="${fmtMoneyInputValue(DB.warningThreshold)}"></div>
+      </div>
+      <div class="field"><label>הערות</label><textarea id="ob_notes" rows="2">${ob.notes||''}</textarea></div>
+      <button class="btn btn-green" onclick="saveOpeningBalance()">💾 שמור</button>
+      ${DB.openingBalances.length>1?`
+        <div class="section-title">היסטוריית יתרות פתיחה</div>
+        <div class="table-wrap"><table><thead><tr><th>תאריך</th><th>סכום</th><th>חשבון</th><th>הערות</th></tr></thead>
+        <tbody>${DB.openingBalances.slice().reverse().map(o=>`<tr><td>${fmtDateHe(o.date)}</td><td>${fmtILS(o.amount)}</td><td>${o.accountName||'-'}</td><td>${o.notes||'-'}</td></tr>`).join('')}</tbody>
+        </table></div>`:''}
+    </div>
+  `;
+}
+function saveOpeningBalance(){
+  const amount = parseMoneyString(document.getElementById('ob_amount').value);
+  const date = document.getElementById('ob_date').value;
+  const accountName = document.getElementById('ob_name').value;
+  const notes = document.getElementById('ob_notes').value;
+  const threshold = parseMoneyString(document.getElementById('ob_threshold').value);
+  DB.openingBalances.push({id:uid('ob'), amount, date, accountName, notes});
+  DB.warningThreshold = threshold;
+  logAudit('openingBalance', 'main', 'update');
+  saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+/* =========================================================================
+   דוחות
+   ========================================================================= */
+const REPORT_TYPES = [
+  {id:'income-by-month', label:'דוח הכנסות לפי חודש'},
+  {id:'expense-by-month', label:'דוח הוצאות לפי חודש'},
+  {id:'monthly-cashflow-report', label:'דוח תזרים חודשי'},
+  {id:'annual-cashflow', label:'דוח תזרים שנתי'},
+  {id:'unpaid-customers', label:'דוח לקוחות שטרם שילמו'},
+  {id:'late-payments', label:'דוח תשלומים באיחור'},
+  {id:'checks-outstanding', label:"דוח צ'קים בחוץ"},
+  {id:'credit-cards', label:'דוח כרטיסי אשראי'},
+  {id:'fixed-expenses', label:'דוח הוצאות קבועות'},
+  {id:'mid-month-cutoff', label:'דוח תזרים עד ליום ה-15 בכל חודש'},
+  {id:'forecast-4m', label:'דוח תחזית לארבעה חודשים'},
+  {id:'expected-vs-actual', label:'דוח השוואה בין תזרים צפוי לתזרים בפועל'}
+];
+
+function renderReportsView(el){
+  const sel = viewState.reportId || 'income-by-month';
+  const monthlyReportTypes = ['income-by-month','expense-by-month','annual-cashflow','mid-month-cutoff','expected-vs-actual'];
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="toolbar">
+        <select id="reportSelect" style="max-width:340px;" onchange="viewState.reportId=this.value; viewState.reportMonth=''; renderCurrentView();">
+          ${REPORT_TYPES.map(r=>`<option value="${r.id}" ${sel===r.id?'selected':''}>${r.label}</option>`).join('')}
+        </select>
+        <div class="filters">
+          <select id="reportYear" onchange="viewState.reportYear=this.value; renderCurrentView();">
+            ${[0,1,2].map(i=>{const y=new Date().getFullYear()-i; return `<option value="${y}" ${(viewState.reportYear||new Date().getFullYear())==y?'selected':''}>${y}</option>`;}).join('')}
+          </select>
+          ${monthlyReportTypes.includes(sel) ? `
+          <select id="reportMonthFilter" onchange="viewState.reportMonth=this.value; renderCurrentView();">
+            <option value="">כל השנה</option>
+            ${HE_MONTHS.map((m,i)=>`<option value="${i+1}" ${String(viewState.reportMonth)===String(i+1)?'selected':''}>${m} בלבד</option>`).join('')}
+          </select>` : ''}
+          ${SCOPABLE_REPORTS.includes(sel) ? `
+          <div class="pill-toggle">
+            <div class="pill ${(viewState.reportScope||'all')==='all'?'active':''}" onclick="viewState.reportScope='all'; renderCurrentView();">משולב</div>
+            <div class="pill ${viewState.reportScope==='income'?'active':''}" onclick="viewState.reportScope='income'; renderCurrentView();" style="color:${viewState.reportScope==='income'?'#fff':'var(--green)'};background:${viewState.reportScope==='income'?'var(--green)':''};">🟢 הכנסות בלבד</div>
+            <div class="pill ${viewState.reportScope==='expense'?'active':''}" onclick="viewState.reportScope='expense'; renderCurrentView();" style="color:${viewState.reportScope==='expense'?'#fff':'var(--red)'};background:${viewState.reportScope==='expense'?'var(--red)':''};">🔴 הוצאות בלבד</div>
+          </div>` : ''}
+          <input type="text" id="reportSearch" placeholder="🔍 סינון חופשי בטבלה..." style="min-width:160px;" value="${viewState.reportSearch||''}" oninput="viewState.reportSearch=this.value; renderReportBody(viewState.reportId||'income-by-month', viewState.reportYear||new Date().getFullYear());">
+          <button class="btn btn-blue btn-sm" onclick="downloadReportPDF()">📄 הורדה כ-PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 הדפסה</button>
+          <button class="btn btn-green btn-sm" onclick="exportReportStyledExcel()">📊 הורדה כאקסל מעוצב</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportReportCSV()">⬇️ CSV גולמי</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="reportBody"></div>
+  `;
+  renderReportBody(sel, viewState.reportYear||new Date().getFullYear());
+}
+function filterReportMonth(mk){
+  // clicking a month row in any monthly report scopes the whole report to just that month
+  viewState.reportMonth = String(Number(mk.split('-')[1]));
+  renderCurrentView();
+}
+
+
+let lastReportRows = {headers:[], rows:[], summary:[], title:''};
+
+const SCOPABLE_REPORTS = ['monthly-cashflow-report','annual-cashflow','forecast-4m','expected-vs-actual'];
+const REPORT_COLUMN_ROLES = {
+  'income-by-month': ['month','date','text','text','text','income','text'],
+  'expense-by-month': ['month','date','text','text','text','text','expense','text'],
+  'monthly-cashflow-report': ['date','income','expense','net','net'],
+  'annual-cashflow': ['month','income','expense','net','net'],
+  'unpaid-customers': ['text','text','income','income','income'],
+  'checks-outstanding': ['text','text','date','expense','text'],
+  'credit-cards': ['text','text','date','expense','text'],
+  'fixed-expenses': ['text','text','expense','text','text'],
+  'mid-month-cutoff': ['month','net','net'],
+  'forecast-4m': ['month','income','expense','net','net'],
+  'expected-vs-actual': ['month','income','income','expense','expense','net']
+};
+function reportMonthRange(){
+  const rm = viewState.reportMonth;
+  if(rm){ return [Number(rm)-1]; }
+  return Array.from({length:12},(_,i)=>i);
+}
+
+function renderReportBody(id, year){
+  const body = document.getElementById('reportBody');
+  const title = REPORT_TYPES.find(r=>r.id===id)?.label||'';
+  const monthlyReportTypes = ['income-by-month','expense-by-month','annual-cashflow','mid-month-cutoff','expected-vs-actual'];
+  const isMonthlyReport = monthlyReportTypes.includes(id);
+  let headers=[], rows=[], summary=[], rowMonthKeys=[];
+
+  if(id==='income-by-month'){
+    headers = ['חודש','תאריך','לקוח','מס\' חשבונית','הערות','סכום','סטטוס'];
+    let totExpected=0, totActual=0, totCount=0, totLate=0;
+    reportMonthRange().forEach(m=>{
+      const mk = year+'-'+String(m+1).padStart(2,'0');
+      const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
+      s.incomePayments.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{
+        rows.push([monthLabel(mk), fmtDateHe(p.date), (p.isCredit?'🟣 זיכוי - ':'')+p.customer, p.invoiceNumber, p.notes||'-', fmtILS(p.amount), p.status]);
+        rowMonthKeys.push(mk);
+      });
+      totExpected+=s.incomeTotal; totActual+=sa.incomeTotal; totCount+=s.countIncome; totLate+=s.lateIncome;
+    });
+    summary = [
+      {label:'סה"כ הכנסות צפויות לשנה', value: fmtILS(totExpected), role:'income'},
+      {label:'סה"כ שולם בפועל', value: fmtILS(totActual), role:'income'},
+      {label:'יתרה לגבייה', value: fmtILS(round2(totExpected-totActual))},
+      {label:'מס׳ חשבוניות', value: totCount},
+      {label:'חשבוניות באיחור', value: totLate}
+    ];
+  } else if(id==='expense-by-month'){
+    headers = ['חודש','תאריך','ספק','סוג הוצאה','תיאור','אמצעי תשלום','סכום','סטטוס'];
+    let totExpected=0, totActual=0, totCount=0, totLate=0;
+    reportMonthRange().forEach(m=>{
+      const mk = year+'-'+String(m+1).padStart(2,'0');
+      const s = monthStats(mk,'expected'); const sa = monthStats(mk,'actual');
+      s.expensePayments.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(p=>{
+        rows.push([monthLabel(mk), fmtDateHe(p.date), p.supplier, p.type, p.description||'-', p.paymentMethod||'-', fmtILS(p.amount), p.status]);
+        rowMonthKeys.push(mk);
+      });
+      totExpected+=s.expenseTotal; totActual+=sa.expenseTotal; totCount+=s.countExpense; totLate+=s.lateExpense;
+    });
+    summary = [
+      {label:'סה"כ הוצאות צפויות לשנה', value: fmtILS(totExpected), role:'expense'},
+      {label:'סה"כ שולם בפועל', value: fmtILS(totActual), role:'expense'},
+      {label:'יתרה לתשלום', value: fmtILS(round2(totExpected-totActual))},
+      {label:'מס׳ הוצאות', value: totCount},
+      {label:'הוצאות באיחור', value: totLate}
+    ];
+  } else if(id==='monthly-cashflow-report'){
+    const mk = viewState.month || todayMonthKey();
+    headers=['תאריך','הכנסות','הוצאות','נטו','יתרה מצטברת'];
+    const days = dailyCashflow(mk,'expected');
+    days.forEach(d=> rows.push([fmtDateHe(d.iso), fmtILS(d.incSum), fmtILS(d.expSum), fmtILS(d.net), fmtILS(d.closeBal)]));
+    const totInc = days.reduce((s,d)=>s+d.incSum,0), totExp = days.reduce((s,d)=>s+d.expSum,0);
+    summary = [
+      {label:'חודש', value: monthLabel(mk)},
+      {label:'סה"כ הכנסות', value: fmtILS(totInc), role:'income'},
+      {label:'סה"כ הוצאות', value: fmtILS(totExp), role:'expense'},
+      {label:'תזרים נטו לחודש', value: fmtILS(round2(totInc-totExp))},
+      {label:'יתרת סגירה', value: days.length? fmtILS(days[days.length-1].closeBal) : fmtILS(0)}
+    ];
+  } else if(id==='annual-cashflow'){
+    headers=['חודש','הכנסות','הוצאות','יתרה חודשית','יתרה מצטברת'];
+    let totInc=0, totExp=0;
+    reportMonthRange().forEach(m=>{
+      const mk = year+'-'+String(m+1).padStart(2,'0');
+      const s = monthStats(mk,'expected');
+      rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(s.expenseTotal), fmtILS(s.balance), fmtILS(cumulativeBalanceThroughMonth(mk,'expected'))]);
+      rowMonthKeys.push(mk);
+      totInc+=s.incomeTotal; totExp+=s.expenseTotal;
+    });
+    summary = [
+      {label:'סה"כ הכנסות לשנה', value: fmtILS(totInc), role:'income'},
+      {label:'סה"כ הוצאות לשנה', value: fmtILS(totExp), role:'expense'},
+      {label:'רווח/הפסד שנתי', value: fmtILS(round2(totInc-totExp))},
+      {label:'יתרה מצטברת בסוף השנה', value: fmtILS(cumulativeBalanceThroughMonth(year+'-12','expected'))}
+    ];
+  } else if(id==='unpaid-customers'){
+    headers=['לקוח','חשבונית','סכום כולל','שולם','יתרה'];
+    let totRemaining=0;
+    DB.incomeInvoices.forEach(inv=>{
+      const paid = inv.payments.reduce((s,p)=>s+(p.status==='שולם'?p.amount:(p.paidAmount||0)),0);
+      const remaining = round2(inv.totalAmount-paid);
+      if(remaining>0){ rows.push([inv.customer, inv.invoiceNumber, fmtILS(inv.totalAmount), fmtILS(paid), fmtILS(remaining)]); totRemaining+=remaining; }
+    });
+    summary = [{label:'מס׳ חשבוניות פתוחות', value: rows.length}, {label:'סה"כ יתרה לגבייה', value: fmtILS(totRemaining)}];
+  } else if(id==='late-payments'){
+    headers=['סוג','גורם','תאריך','סכום','סטטוס'];
+    let totIncLate=0, totExpLate=0;
+    allIncomePayments().filter(p=>p.status==='באיחור').forEach(p=>{ rows.push(['הכנסה', p.customer, fmtDateHe(p.date), fmtILS(p.amount), p.status]); totIncLate+=p.amount; });
+    allExpensePayments().filter(p=>p.status==='באיחור').forEach(p=>{ rows.push(['הוצאה', p.supplier, fmtDateHe(p.date), fmtILS(p.amount), p.status]); totExpLate+=p.amount; });
+    summary = [{label:'הכנסות באיחור', value: fmtILS(totIncLate)}, {label:'הוצאות באיחור', value: fmtILS(totExpLate)}, {label:'סה"כ רשומות באיחור', value: rows.length}];
+  } else if(id==='checks-outstanding'){
+    headers=['ספק','בנק','מועד פירעון','סכום','סטטוס'];
+    let tot=0;
+    DB.expenses.filter(e=>e.type==="צ'קים בחוץ").forEach(e=> e.payments.forEach(p=>{ if(p.status!=='שולם'&&p.status!=='בוטל'){ rows.push([e.supplier, e.extra?.bankName||'-', fmtDateHe(p.date), fmtILS(p.amount), p.status]); tot+=p.amount; } }));
+    summary = [{label:'מס׳ צ׳קים בחוץ', value: rows.length}, {label:'סה"כ סכום', value: fmtILS(tot)}];
+  } else if(id==='credit-cards'){
+    headers=['חברת אשראי','ספק','מועד חיוב','סכום','סטטוס'];
+    let tot=0;
+    DB.expenses.filter(e=>e.type==='כרטיסי אשראי').forEach(e=> e.payments.forEach(p=>{ rows.push([e.extra?.ccCompany||'-', e.supplier, fmtDateHe(p.date), fmtILS(p.amount), p.status]); tot+=p.amount; }));
+    summary = [{label:'מס׳ חיובים', value: rows.length}, {label:'סה"כ חיובי אשראי', value: fmtILS(tot)}];
+  } else if(id==='fixed-expenses'){
+    headers=['ספק','תיאור','סכום קבוע','תדירות','תאריך סיום'];
+    let tot=0;
+    DB.expenses.filter(e=>e.isRecurring).forEach(e=>{ rows.push([e.supplier, e.description||'-', fmtILS(e.totalAmount), FREQ_OPTIONS.find(f=>f.v===e.frequency)?.l||e.frequency, e.endDate?fmtDateHe(e.endDate):'ללא תאריך סיום']); tot+=Number(e.totalAmount)||0; });
+    summary = [{label:'מס׳ הוצאות קבועות', value: rows.length}, {label:'סה"כ לחיוב חודשי', value: fmtILS(tot)}];
+  } else if(id==='mid-month-cutoff'){
+    headers=['חודש','יתרה עד ה-15','יתרה לסוף חודש'];
+    reportMonthRange().forEach(m=>{
+      const mk = year+'-'+String(m+1).padStart(2,'0');
+      const s = monthStats(mk,'expected');
+      rows.push([monthLabel(mk), fmtILS(s.balance15), fmtILS(s.balance)]);
+      rowMonthKeys.push(mk);
+    });
+    summary = [{label:'שנה', value: year}];
+  } else if(id==='forecast-4m'){
+    headers=['חודש','הכנסות','הוצאות','יתרה חודשית','יתרה מצטברת'];
+    let totInc=0, totExp=0;
+    for(let i=0;i<4;i++){
+      const mk = addMonths(todayISO(),i).slice(0,7);
+      const s = monthStats(mk,'expected');
+      rows.push([monthLabel(mk), fmtILS(s.incomeTotal), fmtILS(s.expenseTotal), fmtILS(s.balance), fmtILS(cumulativeBalanceThroughMonth(mk,'expected'))]);
+      totInc+=s.incomeTotal; totExp+=s.expenseTotal;
+    }
+    summary = [{label:'סה"כ הכנסות (4 חודשים)', value: fmtILS(totInc), role:'income'}, {label:'סה"כ הוצאות (4 חודשים)', value: fmtILS(totExp), role:'expense'}, {label:'רווח/הפסד תחזית', value: fmtILS(round2(totInc-totExp))}];
+  } else if(id==='expected-vs-actual'){
+    headers=['חודש','הכנסות צפוי','הכנסות בפועל','הוצאות צפוי','הוצאות בפועל','פער'];
+    let totGap=0, totIncExp=0, totIncAct=0, totExpExp=0, totExpAct=0;
+    reportMonthRange().forEach(m=>{
+      const mk = year+'-'+String(m+1).padStart(2,'0');
+      const se = monthStats(mk,'expected'), sa = monthStats(mk,'actual');
+      const gap = round2((se.incomeTotal-se.expenseTotal)-(sa.incomeTotal-sa.expenseTotal));
+      rows.push([monthLabel(mk), fmtILS(se.incomeTotal), fmtILS(sa.incomeTotal), fmtILS(se.expenseTotal), fmtILS(sa.expenseTotal), fmtILS(gap)]);
+      rowMonthKeys.push(mk);
+      totGap+=gap; totIncExp+=se.incomeTotal; totIncAct+=sa.incomeTotal; totExpExp+=se.expenseTotal; totExpAct+=sa.expenseTotal;
+    });
+    summary = [
+      {label:'הכנסות צפוי', value: fmtILS(totIncExp), role:'income'},
+      {label:'הכנסות בפועל', value: fmtILS(totIncAct), role:'income'},
+      {label:'הוצאות צפוי', value: fmtILS(totExpExp), role:'expense'},
+      {label:'הוצאות בפועל', value: fmtILS(totExpAct), role:'expense'},
+      {label:'סה"כ פער שנתי (צפוי מול בפועל)', value: fmtILS(totGap)}
+    ];
+  }
+
+  // scope filter: for reports combining income+expense, let the user narrow to
+  // just one side - drop the other side's columns (and any pure "net" columns,
+  // since those depend on both and don't make sense in a single-sided view)
+  let roles = REPORT_COLUMN_ROLES[id];
+  const scope = SCOPABLE_REPORTS.includes(id) ? (viewState.reportScope||'all') : 'all';
+  if(roles && scope!=='all'){
+    const keepIdx = roles.map((r,i)=> (r==='month'||r==='date'||r===scope) ? i : -1).filter(i=>i>=0);
+    headers = keepIdx.map(i=>headers[i]);
+    rows = rows.map(r=> keepIdx.map(i=>r[i]));
+    roles = keepIdx.map(i=>roles[i]);
+    summary = summary.filter(s=> !s.role || s.role===scope);
+  }
+
+  // general free-text filter across all report types - flexible filtering without
+  // needing per-report-specific filter UI; matches against any visible cell text
+  const searchQ = (viewState.reportSearch||'').trim().toLowerCase();
+  if(searchQ){
+    const keptRows = [], keptMonthKeys = [];
+    rows.forEach((r,i)=>{
+      if(r.some(c=> String(c).toLowerCase().includes(searchQ))){
+        keptRows.push(r);
+        if(rowMonthKeys.length) keptMonthKeys.push(rowMonthKeys[i]);
+      }
+    });
+    rows = keptRows;
+    if(rowMonthKeys.length) rowMonthKeys = keptMonthKeys;
+  }
+
+  lastReportRows = {headers, rows, summary, title, year, roles};
+  const now = new Date();
+  body.innerHTML = `
+    <div id="printReportHeader">
+      <div class="prh-company">איזון תעשיות ומתכת בע"מ</div>
+      <div class="prh-title">${title}${year?(' - '+year):''}</div>
+      <div class="prh-meta">הופק בתאריך ${now.toLocaleDateString('he-IL')} בשעה ${now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+    <h3 class="no-print" style="margin:0 0 14px;font-size:15px;">${title} ${year?('- '+year):''}</h3>
+    ${summary.length? `<div class="report-summary-box"><div class="rs-grid">${summary.map(s=>`<div class="rs-item"><div class="rs-label">${s.label}</div><div class="rs-value" style="${s.role==='income'?'color:#6fe3a3;':s.role==='expense'?'color:#ff9d9d;':''}">${s.value}</div></div>`).join('')}</div></div>` : ''}
+    ${viewState.reportMonth ? `<div class="no-print" style="margin-bottom:10px;"><button class="btn btn-ghost btn-sm" onclick="viewState.reportMonth=''; renderCurrentView();">↩ חזרה לכל השנה</button></div>` : ''}
+    <div class="table-wrap"><table><thead><tr>${headers.map((h,i)=>{const role=roles&&roles[i]; const cls=(role==='income'||role==='expense')?` col-${role}`:''; return `<th class="${cls}">${h}</th>`;}).join('')}</tr></thead>
+    <tbody>${rows.length? rows.map((r,i)=>`<tr>${r.map((c,ci)=>{
+        const role = roles && roles[ci];
+        const cls = (role==='income'||role==='expense') ? ` col-${role}` : '';
+        if(ci===0 && rowMonthKeys[i]) return `<td class="${cls}"><a href="javascript:void(0)" class="no-print" onclick="filterReportMonth('${rowMonthKeys[i]}')" style="color:var(--blue);text-decoration:underline;cursor:pointer;">${c}</a><span class="print-only" style="display:none;">${c}</span></td>`;
+        return `<td class="${cls}">${c}</td>`;
+      }).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}"><div class="empty-state"><div class="ic">📭</div>אין נתונים להצגה בדוח זה</div></td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function downloadReportPDF(){
+  showToast('נפתח חלון הדפסה - בחרו "שמירה כ-PDF" ביעד ההדפסה כדי להוריד את הדוח');
+  setTimeout(()=> window.print(), 300);
+}
+
+function exportReportStyledExcel(){
+  const {headers, rows, title, year, summary, roles} = lastReportRows;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('he-IL');
+  const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+
+  const summaryHtml = (summary && summary.length) ? `
+    <table style="border-collapse:collapse;width:100%;margin-bottom:14px;" dir="rtl">
+      <tr>${summary.map(s=>`<td style="background:#134a72;color:#ffffff;font-weight:bold;font-size:11px;padding:8px;border:1px solid #0e3a5f;text-align:center;">${escXls(s.label)}</td>`).join('')}</tr>
+      <tr>${summary.map(s=>`<td style="background:#eef2f7;color:${s.role==='income'?'#1f7a4d':s.role==='expense'?'#b7322a':'#0e3a5f'};font-weight:bold;font-size:14px;padding:10px;border:1px solid #ccd7e0;text-align:center;">${escXls(s.value)}</td>`).join('')}</tr>
+    </table>` : '';
+
+  const headerRow = `<tr>${headers.map((h,i)=>{
+    const role = roles && roles[i];
+    const bg = role==='income' ? '#1f7a4d' : role==='expense' ? '#b7322a' : '#0e3a5f';
+    return `<th style="background:${bg};color:#ffffff;font-weight:bold;padding:9px 10px;border:1px solid #333;font-size:12px;">${escXls(h)}</th>`;
+  }).join('')}</tr>`;
+
+  const bodyRows = rows.map((r,ri)=>{
+    const rowBg = ri%2===0 ? '#ffffff' : '#f3f6f9';
+    return `<tr>${r.map((c,ci)=>{
+      const role = roles && roles[ci];
+      const color = role==='income' ? '#1f7a4d' : role==='expense' ? '#b7322a' : '#222222';
+      const weight = (role==='income'||role==='expense') ? 'bold' : 'normal';
+      return `<td style="background:${rowBg};color:${color};font-weight:${weight};padding:7px 10px;border:1px solid #ddd;text-align:center;font-size:11.5px;">${escXls(c)}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+  <head><meta charset="UTF-8">
+  <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+  <x:Name>${escXls(title)}</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions>
+  </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+  </head>
+  <body style="font-family:Arial,sans-serif;direction:rtl;" dir="rtl">
+    <table style="border-collapse:collapse;width:100%;margin-bottom:6px;" dir="rtl">
+      <tr><td style="background:#0e3a5f;color:#ffffff;font-size:18px;font-weight:bold;padding:14px;text-align:center;" colspan="${headers.length}">איזון תעשיות ומתכת בע"מ — ${escXls(title)}${year?(' '+year):''}</td></tr>
+      <tr><td style="background:#eef2f7;color:#0e3a5f;font-size:11px;padding:6px;text-align:center;" colspan="${headers.length}">הופק בתאריך ${dateStr} בשעה ${timeStr}</td></tr>
+    </table>
+    ${summaryHtml}
+    <table style="border-collapse:collapse;width:100%;" dir="rtl">
+      ${headerRow}
+      ${bodyRows || `<tr><td colspan="${headers.length}" style="padding:14px;text-align:center;color:#888;">אין נתונים להצגה בדוח זה</td></tr>`}
+    </table>
+  </body></html>`;
+
+  const blob = new Blob(['\ufeff'+html], {type:'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (title||'report')+'.xls';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('קובץ האקסל המעוצב יוצא בהצלחה');
+}
+function escXls(v){ return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function exportReportCSV(){
+  const {headers, rows, title, summary} = lastReportRows;
+  let csv = '\uFEFF'+headers.join(',')+'\n';
+  rows.forEach(r=> csv += r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')+'\n');
+  if(summary && summary.length){
+    csv += '\n"סיכום"\n';
+    summary.forEach(s=> csv += `"${String(s.label).replace(/"/g,'""')}","${String(s.value).replace(/"/g,'""')}"\n`);
+  }
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (title||'report')+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('הקובץ יוצא בהצלחה');
+}
+/* =========================================================================
+   התראות | לקוחות וספקים | הגדרות
+   ========================================================================= */
+function renderAlertsView(el){
+  const alerts = computeAlerts();
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;font-size:15px;">כל ההתראות הפתוחות (${alerts.length})</h3>
+        ${alerts.length? `<button class="btn btn-ghost btn-sm" onclick="dismissAllAlerts()">סמן הכל כטופל</button>`:''}
+      </div>
+      ${alerts.length? alerts.map(a=>`
+        <div class="alert sev-${a.sev}">
+          <span class="ic">${a.ic}</span>
+          <div class="txt" style="flex:1;"><b>${a.title}</b><span>${a.sub}</span></div>
+          <button class="iconsm" title="סמן כטופל" onclick="dismissAlert('${a.key}')">✕</button>
+        </div>`).join('') : `<div class="empty-state"><div class="ic">✅</div>אין התראות פתוחות כרגע — הכול תקין</div>`}
+    </div>
+  `;
+}
+function dismissAlert(key){ DB.dismissedAlerts.push(key); saveDB(); renderCurrentView(); renderSidenav(); }
+function dismissAllAlerts(){ computeAlerts().forEach(a=>DB.dismissedAlerts.push(a.key)); saveDB(); renderCurrentView(); renderSidenav(); showToast('כל ההתראות סומנו כטופלו'); }
+
+/* ---------- contacts ---------- */
+function renderContactsView(el){
+  el.innerHTML = `
+    <div class="grid2">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;"><h3 style="margin:0 0 12px;font-size:15px;">👥 לקוחות (${DB.customers.length})</h3></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;"><input id="newCustomerName" placeholder="שם לקוח חדש"><button class="btn btn-blue btn-sm" onclick="addCustomer()">הוסף</button></div>
+        <div class="table-wrap"><table><thead><tr><th>שם</th><th>חשבוניות פתוחות</th><th>יתרה לתשלום</th></tr></thead>
+        <tbody>${DB.customers.map(c=>{
+          const invs = DB.incomeInvoices.filter(i=>i.customer===c.name);
+          const remaining = invs.reduce((s,inv)=> s+ inv.payments.reduce((ss,p)=> ss+(p.status==='שולם'?0:(p.amount-(p.paidAmount||0))),0),0);
+          return `<tr><td>${c.name}</td><td>${invs.length}</td><td>${fmtILS(remaining)}</td></tr>`;
+        }).join('')||'<tr><td colspan="3"><div class="empty-state">אין לקוחות עדיין</div></td></tr>'}</tbody></table></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;"><h3 style="margin:0 0 12px;font-size:15px;">🏭 ספקים (${DB.suppliers.length})</h3></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;"><input id="newSupplierName" placeholder="שם ספק חדש"><button class="btn btn-red btn-sm" onclick="addSupplier()">הוסף</button></div>
+        <div class="table-wrap"><table><thead><tr><th>שם</th><th>הוצאות פתוחות</th><th>יתרה לתשלום</th></tr></thead>
+        <tbody>${DB.suppliers.map(s=>{
+          const exs = DB.expenses.filter(e=>e.supplier===s.name);
+          const remaining = exs.reduce((sum,e)=> sum+ e.payments.reduce((ss,p)=> ss+(p.status==='שולם'?0:(p.amount-(p.paidAmount||0))),0),0);
+          return `<tr><td>${s.name}</td><td>${exs.length}</td><td>${fmtILS(remaining)}</td></tr>`;
+        }).join('')||'<tr><td colspan="3"><div class="empty-state">אין ספקים עדיין</div></td></tr>'}</tbody></table></div>
+      </div>
+    </div>
+  `;
+}
+function addCustomer(){
+  const name = document.getElementById('newCustomerName').value.trim();
+  if(!name) return;
+  if(!DB.customers.find(c=>c.name===name)) DB.customers.push({id:uid('cust'), name});
+  saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+function addSupplier(){
+  const name = document.getElementById('newSupplierName').value.trim();
+  if(!name) return;
+  if(!DB.suppliers.find(s=>s.name===name)) DB.suppliers.push({id:uid('sup'), name});
+  saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+
+/* ---------- settings ---------- */
+function renderSettingsView(el){
+  const tab = viewState.tab || 'users';
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="pill-toggle">
+        <div class="pill ${tab==='users'?'active':''}" onclick="viewState.tab='users';renderCurrentView();">משתמשים והרשאות</div>
+        <div class="pill ${tab==='categories'?'active':''}" onclick="viewState.tab='categories';renderCurrentView();">קטגוריות ואמצעי תשלום</div>
+        <div class="pill ${tab==='audit'?'active':''}" onclick="viewState.tab='audit';renderCurrentView();">היסטוריית שינויים</div>
+        <div class="pill ${tab==='recycle'?'active':''}" onclick="viewState.tab='recycle';renderCurrentView();">סל מיחזור</div>
+      </div>
+    </div>
+    <div class="card" id="settingsBody"></div>
+  `;
+  const body = document.getElementById('settingsBody');
+  if(tab==='users') renderUsersTab(body);
+  else if(tab==='categories') renderCategoriesTab(body);
+  else if(tab==='audit') renderAuditTab(body);
+  else renderRecycleTab(body);
+}
+
+function renderUsersTab(body){
+  body.innerHTML = `
+    <h3 style="margin:0 0 12px;font-size:15px;">משתמש פעיל</h3>
+    <div class="field" style="max-width:320px;">
+      <select id="currentUserSelect" onchange="setCurrentUser(this.value)">
+        ${DB.users.map(u=>`<option value="${u.name}" ${DB.currentUser===u.name?'selected':''}>${u.name} (${u.role})</option>`).join('')}
+      </select>
+    </div>
+    <div class="section-title">רשימת משתמשים</div>
+    <div class="table-wrap"><table><thead><tr><th>שם</th><th>תפקיד</th></tr></thead>
+    <tbody>${DB.users.map(u=>`<tr><td>${u.name}</td><td>${u.role}</td></tr>`).join('')}</tbody></table></div>
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="field"><label>שם משתמש חדש</label><input id="newUserName"></div>
+      <div class="field"><label>הרשאה</label><select id="newUserRole"><option>משתמש רגיל</option><option>מנהל מערכת</option></select></div>
+    </div>
+    <button class="btn btn-blue" onclick="addUser()">➕ הוסף משתמש</button>
+  `;
+}
+function setCurrentUser(name){ DB.currentUser=name; saveDB(); showToast('משתמש פעיל עודכן'); }
+function addUser(){
+  const name = document.getElementById('newUserName').value.trim();
+  const role = document.getElementById('newUserRole').value;
+  if(!name) return;
+  DB.users.push({id:uid('u'), name, role});
+  saveDB(); showToast('הנתונים נשמרו בהצלחה'); renderCurrentView();
+}
+
+function renderCategoriesTab(body){
+  body.innerHTML = `
+    <h3 style="margin:0 0 12px;font-size:15px;">סוגי הוצאה</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">${DB.expenseCategories.map(c=>`<span class="pill active" style="cursor:default;">${c}</span>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;"><input id="newCat" placeholder="סוג הוצאה חדש"><button class="btn btn-blue btn-sm" onclick="addCategory()">הוסף</button></div>
+    <div class="section-title">אמצעי תשלום</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">${DB.paymentMethods.map(c=>`<span class="pill active" style="cursor:default;">${c}</span>`).join('')}</div>
+    <div style="display:flex;gap:8px;"><input id="newMethod" placeholder="אמצעי תשלום חדש"><button class="btn btn-blue btn-sm" onclick="addPaymentMethod()">הוסף</button></div>
+    <div class="section-title">סף אזהרה תזרימי</div>
+    <div class="field" style="max-width:260px;"><input ${moneyInputAttrs()} id="thresholdInput" value="${fmtMoneyInputValue(DB.warningThreshold)}"><button class="btn btn-green btn-sm" style="margin-top:8px;" onclick="updateThreshold()">שמור סף</button></div>
+  `;
+}
+function addCategory(){ const v=document.getElementById('newCat').value.trim(); if(!v)return; if(!DB.expenseCategories.includes(v)) DB.expenseCategories.push(v); saveDB(); showToast('נוסף בהצלחה'); renderCurrentView(); }
+function addPaymentMethod(){ const v=document.getElementById('newMethod').value.trim(); if(!v)return; if(!DB.paymentMethods.includes(v)) DB.paymentMethods.push(v); saveDB(); showToast('נוסף בהצלחה'); renderCurrentView(); }
+function updateThreshold(){ DB.warningThreshold = parseMoneyString(document.getElementById('thresholdInput').value); saveDB(); showToast('הנתונים נשמרו בהצלחה'); }
+
+function renderAuditTab(body){
+  const logs = DB.auditLog.slice(0,150);
+  body.innerHTML = `
+    <h3 style="margin:0 0 12px;font-size:15px;">יומן פעילות אחרון (${DB.auditLog.length} רשומות)</h3>
+    <div class="table-wrap"><table><thead><tr><th>תאריך ושעה</th><th>משתמש</th><th>ישות</th><th>פעולה</th><th>שדה</th><th>ערך קודם</th><th>ערך חדש</th></tr></thead>
+    <tbody>${logs.length? logs.map(l=>`<tr><td>${new Date(l.ts).toLocaleString('he-IL')}</td><td>${l.user}</td><td>${l.entity}</td><td>${l.action}</td><td>${l.field||'-'}</td><td>${l.oldVal??'-'}</td><td>${l.newVal??'-'}</td></tr>`).join('') : `<tr><td colspan="7"><div class="empty-state">אין עדיין פעילות רשומה</div></td></tr>`}</tbody></table></div>
+  `;
+}
+
+function renderRecycleTab(body){
+  body.innerHTML = `
+    <h3 style="margin:0 0 12px;font-size:15px;">סל מיחזור (${DB.recycleBin.length})</h3>
+    <p style="color:var(--muted);font-size:12.5px;">רשומות שנמחקו נשמרות כאן ולא נמחקות לצמיתות באופן מיידי.</p>
+    <div class="table-wrap"><table><thead><tr><th>ישות</th><th>נמחק ע"י</th><th>תאריך מחיקה</th><th>פעולות</th></tr></thead>
+    <tbody>${DB.recycleBin.length? DB.recycleBin.slice().reverse().map(r=>`<tr><td>${r.entity}</td><td>${r.deletedBy}</td><td>${new Date(r.deletedAt).toLocaleString('he-IL')}</td><td><button class="btn btn-ghost btn-sm" onclick="permanentDelete('${r.id}')">מחיקה סופית</button></td></tr>`).join('') : `<tr><td colspan="4"><div class="empty-state">סל המיחזור ריק</div></td></tr>`}</tbody></table></div>
+  `;
+}
+function permanentDelete(rbId){
+  confirmDialog('פעולה זו תמחק את הרשומה לצמיתות ולא ניתן יהיה לשחזר אותה. להמשיך?', ()=>{
+    DB.recycleBin = DB.recycleBin.filter(r=>r.id!==rbId);
+    saveDB(); showToast('הרשומה נמחקה לצמיתות'); renderCurrentView();
+  });
+}
+/* =========================================================================
+   אתחול המערכת
+   ========================================================================= */
+(async function init(){
+  window.addEventListener('error', function(e){
+    try{
+      const root = document.getElementById('toast-root');
+      const t = document.createElement('div');
+      t.className = 'toast err';
+      t.style.maxWidth = '90vw';
+      t.innerHTML = `<span>⚠️</span><span>שגיאה במערכת: ${(e.message||'').toString().slice(0,200)} (שורה ${e.lineno||'-'})</span>`;
+      root.innerHTML=''; root.appendChild(t);
+      setTimeout(()=>{ t.remove(); }, 8000);
+    }catch(_){}
+  });
+  try{
+    await loadDB();
+  }catch(e){
+    // loadDB already falls back to localStorage/defaults internally, but this
+    // is one more guarantee: no matter what happens, the app must still render
+    // something instead of staying on a blank page forever.
+    console.error('init: loadDB failed unexpectedly, falling back to local/default data', e);
+    showGlobalErrorBanner(e);
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      DB = raw ? JSON.parse(raw) : defaultData();
+    }catch(e2){ DB = defaultData(); }
+  }
+  ensureDefaultCreditCardExpense();
+  navigateTo('dashboard');
+  updateCloudStatusUI();
+
+  // autosave safety net every 20s in case of any missed save call
+  setInterval(()=>{ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }catch(e){} }, 20000);
+
+  // silent periodic pull from the cloud, so changes made on another computer show up here too
+  // without requiring a manual refresh - re-renders the current view if new data arrived
+  setInterval(async ()=>{
+    if(!supabaseClient) return;
+    // never blow away an in-progress, unsaved form - skip this refresh entirely
+    // while the user is actively composing a new invoice/expense. The next
+    // successful poll after they leave this screen will pick up any missed changes.
+    if(currentView==='income-entry' || currentView==='expense-entry') return;
+    try{
+      const before = JSON.stringify(DB);
+      await loadDB();
+      updateCloudStatusUI();
+      if(JSON.stringify(DB) !== before){
+        renderSidenav();
+        renderCurrentView();
+      }
+    }catch(e){ /* stay quiet - this is a background convenience sync, not user-initiated */ }
+  }, 45000);
+})();
+
+</script>
+</body>
+</html>
